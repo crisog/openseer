@@ -26,6 +26,6 @@ runs:
       working-directory: web
       shell: bash
       env:
-        BETTER_AUTH_SECRET: mock-secret
+        BETTER_AUTH_SECRET: test-secret-for-integration-tests
       run: npm run build
 
