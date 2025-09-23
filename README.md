@@ -33,14 +33,6 @@ OpenSeer consists of four main components:
 - **Workers (Go)** - Distributed agents executing HTTP checks across geographic regions, communicating via mTLS gRPC
 - **Database (PostgreSQL + TimescaleDB)** - Time-series storage with automatic aggregation (1-minute, 1-hour, and 1-day intervals), P50/P95/P99 latency tracking, and uptime statistics
 
-### Key Design Principles
-
-- **Pull-based scheduling** - Workers request jobs when ready
-- **Exactly-once execution** - Database-backed leases with row locking ensure no duplicate work
-- **Multi-region distribution** - Workers can be deployed across geographic regions
-- **Secure by default** - mTLS for worker communication, session auth for users
-- **Horizontally scalable** - Add workers and control plane replicas as needed
-
 For detailed architecture documentation, see:
 - [Control Plane Architecture](cmd/control-plane/ARCHITECTURE.md)
 - [Worker Architecture](cmd/worker/ARCHITECTURE.md)
