@@ -8,7 +8,7 @@ import { HealthService } from "@/lib/gen/openseer/v1/health_pb";
 import { MonitorsService } from "@/lib/gen/openseer/v1/monitors_pb";
 
 export const transport = createConnectTransport({
-  baseUrl: process.env.NEXT_PUBLIC_CONTROL_PLANE_URL || "https://localhost:8082",
+  baseUrl: "/api/rpc",
   fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
 });
 
