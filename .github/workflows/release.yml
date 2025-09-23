@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'control-plane/v*'
+      - 'worker/v*'
+      - 'web/v*'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  control-plane:
+    if: startsWith(github.ref_name, 'control-plane/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Go CI
+        uses: ./.github/actions/go-ci
+
+      - name: Derive version and image name
+        id: meta
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#*/}" >> $GITHUB_OUTPUT
+          echo "IMAGE=ghcr.io/${{ github.repository_owner }}/openseer-control-plane" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        uses: ./.github/actions/docker-publish
+        with:
+          image: ${{ steps.meta.outputs.IMAGE }}
+          file: deployments/Dockerfile.control-plane
+          tag: ${{ steps.meta.outputs.VERSION }}
+
+  worker:
+    if: startsWith(github.ref_name, 'worker/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Go CI
+        uses: ./.github/actions/go-ci
+
+      - name: Derive version and image name
+        id: meta
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#*/}" >> $GITHUB_OUTPUT
+          echo "IMAGE=ghcr.io/${{ github.repository_owner }}/openseer-worker" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        uses: ./.github/actions/docker-publish
+        with:
+          image: ${{ steps.meta.outputs.IMAGE }}
+          file: deployments/Dockerfile.worker
+          tag: ${{ steps.meta.outputs.VERSION }}
+
+  web:
+    if: startsWith(github.ref_name, 'web/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Web CI
+        uses: ./.github/actions/web-ci
+
+      - name: Derive version and image name
+        id: meta
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#*/}" >> $GITHUB_OUTPUT
+          echo "IMAGE=ghcr.io/${{ github.repository_owner }}/openseer-web" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        uses: ./.github/actions/docker-publish
+        with:
+          image: ${{ steps.meta.outputs.IMAGE }}
+          file: deployments/Dockerfile.web
+          tag: ${{ steps.meta.outputs.VERSION }}
+
+

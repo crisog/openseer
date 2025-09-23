@@ -52,7 +52,7 @@ func SetupTestDB(t *testing.T) *TestDB {
 		}()
 
 		container, err = testPostgres.Run(ctx,
-			"timescale/timescaledb:latest-pg16",
+			"timescale/timescaledb:latest-pg17",
 			testPostgres.WithDatabase("openseer_test"),
 			testPostgres.WithUsername("openseer"),
 			testPostgres.WithPassword("openseer_test_pass"),

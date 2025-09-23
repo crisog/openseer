@@ -1,0 +1,27 @@
+name: Go CI
+description: Run Go vet, unit tests, and integration tests
+inputs:
+  go-version:
+    description: Go version
+    required: false
+    default: '1.25.x'
+runs:
+  using: composite
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+    - name: Go mod download
+      shell: bash
+      run: go mod download
+    - name: Go vet
+      shell: bash
+      run: go vet ./...
+    - name: Pre-pull DB image for integration tests
+      shell: bash
+      run: docker pull timescale/timescaledb:latest-pg17
+    - name: Run integration tests
+      shell: bash
+      run: go test ./tests/integration/... -v -count=1 -timeout 15m
+

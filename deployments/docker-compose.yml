@@ -1,6 +1,6 @@
 services:
   timescaledb:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:latest-pg17
     environment:
       POSTGRES_USER: openseer
       POSTGRES_PASSWORD: openseer

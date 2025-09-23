@@ -1,0 +1,29 @@
+name: Web CI
+description: Install, type-check, and build Next.js app
+inputs:
+  node-version:
+    description: Node.js version
+    required: false
+    default: '22'
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+        cache-dependency-path: web/package-lock.json
+    - name: Install dependencies
+      working-directory: web
+      shell: bash
+      run: npm ci
+    - name: Type check
+      working-directory: web
+      shell: bash
+      run: npx tsc -p tsconfig.json --noEmit
+    - name: Build
+      working-directory: web
+      shell: bash
+      run: npm run build
+
