@@ -18,6 +18,12 @@ tasks:
     cmds:
       - docker compose up -d timescaledb
 
+  db-init:
+    desc: Initialize database with auth tables
+    deps: [db-up]
+    cmds:
+      - task web-migrate
+
   db-down:
     desc: Stop TimescaleDB database
     dir: '{{.DEPLOYMENTS_DIR}}'
@@ -33,7 +39,7 @@ tasks:
   # Control-plane tasks
   control-up:
     desc: Start control-plane service
-    deps: [db-up]
+    deps: [db-init]
     dir: '{{.DEPLOYMENTS_DIR}}'
     cmds:
       - docker compose --profile app up -d control-plane
@@ -85,7 +91,7 @@ tasks:
   # Web tasks
   web-up:
     desc: Start web service
-    deps: [db-up]
+    deps: [db-init]
     dir: '{{.DEPLOYMENTS_DIR}}'
     cmds:
       - docker compose --profile app up -d web
@@ -104,7 +110,7 @@ tasks:
 
   web-dev:
     desc: Start web development server
-    deps: [db-up]
+    deps: [db-init]
     dir: '{{.WEB_DIR}}'
     cmds:
       - npm run dev
@@ -122,7 +128,7 @@ tasks:
     env:
       DATABASE_URL: '{{.DATABASE_URL}}'
     cmds:
-      - npm run auth:migrate
+      - echo "y" | npm run auth:migrate
 
   # Backend composite tasks
   backend-up:
@@ -140,7 +146,7 @@ tasks:
   # Main orchestration tasks
   up:
     desc: Start all services
-    deps: [db-up, web-migrate, migrate-up, control-up, worker-up, web-up]
+    deps: [migrate-up, control-up, worker-up, web-up]
     cmds:
       - echo "All services started"
 
@@ -159,7 +165,7 @@ tasks:
   # Migration tasks
   migrate-up:
     desc: Run database migrations up
-    deps: [db-up]
+    deps: [db-init]
     dir: '{{.DEPLOYMENTS_DIR}}'
     cmds:
       - docker compose run --rm migrate-up
@@ -211,7 +217,7 @@ tasks:
   # Development environment tasks
   dev:
     desc: Setup development environment
-    deps: [db-up, web-migrate, migrate-up, sqlc]
+    deps: [migrate-up, sqlc]
     cmds:
       - echo "==================================="
       - echo "Development environment ready!"
@@ -256,7 +262,7 @@ tasks:
 
   test-local:
     desc: Run backend locally with Go
-    deps: [db-up, web-migrate, migrate-up]
+    deps: [migrate-up]
     cmds:
       - go run ./cmd/control-plane &
       - sleep 2
