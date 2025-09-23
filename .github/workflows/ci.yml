@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            go:
+              - 'cmd/**'
+              - 'internal/**'
+              - 'gen/**'
+              - 'migrations/**'
+              - 'tests/**'
+              - 'pkg/**'
+              - '*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - '.github/actions/go-ci/**'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'web/**'
+              - '.github/actions/web-ci/**'
+              - '.github/workflows/ci.yml'
+
+  go-ci:
+    needs: changes
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Go CI
+        uses: ./.github/actions/go-ci
+
+  web-ci:
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Web CI
+        uses: ./.github/actions/web-ci
