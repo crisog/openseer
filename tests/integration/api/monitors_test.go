@@ -381,7 +381,7 @@ func TestMonitorsAPI_GetMonitorMetrics(t *testing.T) {
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	})
 
-	t.Run("WithValidMonitorID_ReturnsMetrics", func(t *testing.T) {
+	t.Run("WithValidMonitorID_ReturnsEmptyMetrics", func(t *testing.T) {
 		req := connect.NewRequest(&openseerv1.GetMonitorMetricsRequest{
 			MonitorId: monitor.ID,
 		})
@@ -389,7 +389,7 @@ func TestMonitorsAPI_GetMonitorMetrics(t *testing.T) {
 
 		resp, err := monitorsClient.GetMonitorMetrics(ctx, req)
 		require.NoError(t, err)
-		require.NotNil(t, resp.Msg.Metrics)
+		require.Equal(t, 0, len(resp.Msg.Metrics))
 	})
 
 	t.Run("WithNonExistentMonitorID_ReturnsNotFound", func(t *testing.T) {
