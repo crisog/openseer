@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package openseer.v1;
+
+option go_package = "github.com/crisog/openseer/gen/openseer/v1;openseerv1";
+
+import "google/protobuf/timestamp.proto";
+
+service UserService {
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse) {}
+}
+
+message GetUserProfileRequest {
+  // Empty - gets current user from session
+}
+
+message GetUserProfileResponse {
+  string message = 1;
+  User user = 2;
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  optional string image = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}

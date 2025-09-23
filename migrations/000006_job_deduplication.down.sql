@@ -1,0 +1,1 @@
+ALTER TABLE app.jobs DROP CONSTRAINT IF EXISTS jobs_unique_schedule;

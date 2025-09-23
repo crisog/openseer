@@ -1,0 +1,129 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: openseer
+      POSTGRES_PASSWORD: openseer
+      POSTGRES_DB: openseer
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openseer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate-up:
+    image: migrate/migrate
+    profiles: ["tools"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    volumes:
+      - ../migrations:/migrations
+    command: [
+      "-path", "/migrations",
+      "-database", "postgres://openseer:openseer@timescaledb:5432/openseer?sslmode=disable",
+      "up"
+    ]
+
+  migrate-down:
+    image: migrate/migrate
+    profiles: ["tools"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    volumes:
+      - ../migrations:/migrations
+    command: [
+      "-path", "/migrations",
+      "-database", "postgres://openseer:openseer@timescaledb:5432/openseer?sslmode=disable",
+      "down", "-all"
+    ]
+
+  sqlc:
+    image: sqlc/sqlc
+    profiles: ["tools"]
+    working_dir: /src
+    volumes:
+      - ..:/src
+    command: ["generate"]
+
+  control-plane:
+    image: cosmtrek/air
+    working_dir: /openseer
+    profiles: ["app"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://openseer:openseer@timescaledb:5432/openseer?sslmode=disable
+      BETTER_AUTH_SECRET: dGhpc0lzQVNlY3VyZVNlY3JldEtleUZvckJldHRlckF1dGhUaGF0SXNMb25nRW5vdWdoVG9CZVNlY3VyZQ==
+      WORKER_PORT: 8081
+      WEB_PORT: 8082
+      CLUSTER_TOKEN: dev-token
+      API_ENDPOINT: https://control-plane:8081
+      CORS_ORIGIN: http://localhost:3000
+      TLS_HOSTS: localhost,control-plane,0.0.0.0
+      WEB_TLS_DISABLE: "true"
+    ports:
+      - "8081:8081"  # Worker services (mTLS)
+      - "8082:8082"  # Web services (TLS only)
+    volumes:
+      - ..:/openseer
+    command: [
+      "-c", ".air.toml",
+      "--build.cmd", "go build -o ./bin/control-plane ./cmd/control-plane",
+      "--build.bin", "./bin/control-plane"
+    ]
+    restart: unless-stopped
+
+  worker:
+    image: cosmtrek/air
+    working_dir: /openseer
+    profiles: ["app"]
+    depends_on:
+      - control-plane
+    environment:
+      CONTROL_PLANE_ADDR: control-plane:8081
+      ENROLLMENT_PORT: 8082
+      ENROLLMENT_SCHEME: http
+      CLUSTER_TOKEN: dev-token
+      REGION: us-east-1
+      WORKER_ID: worker-${WORKER_INSTANCE:-1}
+    volumes:
+      - ..:/openseer
+    command: [
+      "-c", ".air.toml",
+      "--build.cmd", "go build -o ./bin/worker ./cmd/worker",
+      "--build.bin", "./bin/worker"
+    ]
+    restart: unless-stopped
+
+  web:
+    image: node:22.18-alpine
+    working_dir: /app
+    profiles: ["app"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://openseer:openseer@timescaledb:5432/openseer?sslmode=disable
+      BETTER_AUTH_SECRET: dGhpc0lzQVNlY3VyZVNlY3JldEtleUZvckJldHRlckF1dGhUaGF0SXNMb25nRW5vdWdoVG9CZVNlY3VyZQ==
+      BETTER_AUTH_URL: http://localhost:3000
+      NODE_ENV: development
+      NEXT_PUBLIC_CONTROL_PLANE_URL: http://localhost:8082
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../web:/app
+      - /app/node_modules
+      - /app/.next
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
+
+
+volumes:
+  timescale_data:

@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package openseer.v1;
+
+option go_package = "github.com/crisog/openseer/gen/openseer/v1;openseerv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+service MonitorsService {
+  rpc CreateMonitor(CreateMonitorRequest) returns (CreateMonitorResponse) {}
+  rpc GetMonitor(GetMonitorRequest) returns (GetMonitorResponse) {}
+  rpc UpdateMonitor(UpdateMonitorRequest) returns (UpdateMonitorResponse) {}
+  rpc ListMonitors(ListMonitorsRequest) returns (ListMonitorsResponse) {}
+  rpc GetMonitorResults(GetMonitorResultsRequest) returns (GetMonitorResultsResponse) {}
+  rpc GetMonitorMetrics(GetMonitorMetricsRequest) returns (GetMonitorMetricsResponse) {}
+  rpc GetMonitorUptime(GetMonitorUptimeRequest) returns (GetMonitorUptimeResponse) {}
+  rpc GetMonitorUptimeTimeline(GetMonitorUptimeTimelineRequest) returns (GetMonitorUptimeTimelineResponse) {}
+}
+
+message CreateMonitorRequest {
+  string id = 1;
+  string name = 2;
+  string url = 3;
+  int32 interval_ms = 4;
+  int32 timeout_ms = 5;
+  repeated string regions = 6;
+  string method = 7;
+  google.protobuf.Struct headers = 8;
+  google.protobuf.Struct assertions = 9;
+  optional bool enabled = 10;
+}
+
+message CreateMonitorResponse {
+  Monitor monitor = 1;
+}
+
+message GetMonitorRequest {
+  string id = 1;
+}
+
+message GetMonitorResponse {
+  Monitor monitor = 1;
+}
+
+message UpdateMonitorRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string url = 3;
+  optional int32 interval_ms = 4;
+  optional int32 timeout_ms = 5;
+  repeated string regions = 6;
+  optional string method = 7;
+  google.protobuf.Struct headers = 8;
+  google.protobuf.Struct assertions = 9;
+  optional bool enabled = 10;
+}
+
+message UpdateMonitorResponse {
+  Monitor monitor = 1;
+}
+
+message ListMonitorsRequest {
+  // Empty for now, can add pagination later
+}
+
+message ListMonitorsResponse {
+  repeated Monitor monitors = 1;
+}
+
+message GetMonitorResultsRequest {
+  string monitor_id = 1;
+  int32 limit = 2;
+}
+
+message GetMonitorResultsResponse {
+  repeated MonitorResult results = 1;
+}
+
+message GetMonitorMetricsRequest {
+  string monitor_id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+}
+
+message GetMonitorMetricsResponse {
+  repeated MonitorMetrics metrics = 1;
+}
+
+message Monitor {
+  string id = 1;
+  string name = 2;
+  string url = 3;
+  int32 interval_ms = 4;
+  int32 timeout_ms = 5;
+  repeated string regions = 6;
+  string method = 7;
+  google.protobuf.Struct headers = 8;
+  google.protobuf.Struct assertions = 9;
+  bool enabled = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp last_scheduled_at = 13;
+  optional google.protobuf.Timestamp next_due_at = 14;
+}
+
+message MonitorResult {
+  string run_id = 1;
+  string monitor_id = 2;
+  string region = 3;
+  google.protobuf.Timestamp event_at = 4;
+  string status = 5;
+  optional int32 http_code = 6;
+  optional int32 dns_ms = 7;
+  optional int32 connect_ms = 8;
+  optional int32 tls_ms = 9;
+  optional int32 ttfb_ms = 10;
+  optional int32 download_ms = 11;
+  optional int32 total_ms = 12;
+  optional int64 size_bytes = 13;
+  optional string error_message = 14;
+}
+
+message MonitorMetrics {
+  string monitor_id = 1;
+  string region = 2;
+  google.protobuf.Timestamp bucket = 3;
+  int64 count = 4;
+  int64 error_count = 5;
+  double error_rate = 6;
+  double p50_ms = 7;
+  double p95_ms = 8;
+  double p99_ms = 9;
+  double min_ms = 10;
+  double max_ms = 11;
+  double avg_ms = 12;
+}
+
+message GetMonitorUptimeRequest {
+  string monitor_id = 1;
+  string time_range = 2; // "24h", "7d", or "30d"
+}
+
+message GetMonitorUptimeResponse {
+  int64 total_checks = 1;
+  int64 successful_checks = 2;
+  int64 failed_checks = 3;
+  double uptime_percentage = 4;
+}
+
+message GetMonitorUptimeTimelineRequest {
+  string monitor_id = 1;
+  string time_range = 2; // "24h", "7d", or "30d"
+}
+
+message UptimeTimelinePoint {
+  google.protobuf.Timestamp bucket = 1;
+  int64 total_checks = 2;
+  int64 successful_checks = 3;
+  double uptime_percentage = 4;
+}
+
+message GetMonitorUptimeTimelineResponse {
+  repeated UptimeTimelinePoint data = 1;
+}

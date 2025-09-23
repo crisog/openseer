@@ -1,0 +1,18 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "queries"
+    schema: "migrations"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/app/control-plane/store/sqlc"
+        emit_json_tags: true
+        emit_interface: true
+        emit_result_struct_pointers: true
+        emit_params_struct_pointers: true
+        overrides:
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "jsonb"
+            go_type: "json.RawMessage"

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package openseer.v1;
+
+option go_package = "github.com/crisog/openseer/gen/openseer/v1;openseerv1";
+
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {}
+}
+
+message HealthCheckRequest {
+  // Empty
+}
+
+message HealthCheckResponse {
+  string status = 1;
+  string message = 2;
+}

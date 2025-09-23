@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package openseer.v1;
+
+option go_package = "github.com/crisog/openseer/gen/openseer/v1;openseerv1";
+
+service EnrollmentService {
+  rpc EnrollWorker(EnrollWorkerRequest) returns (EnrollWorkerResponse);
+  rpc RenewEnrollment(RenewEnrollmentRequest) returns (RenewEnrollmentResponse);
+  rpc RevokeEnrollment(RevokeEnrollmentRequest) returns (RevokeEnrollmentResponse);
+  rpc GetWorkerStatus(GetWorkerStatusRequest) returns (GetWorkerStatusResponse);
+  rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+}
+
+message EnrollWorkerRequest {
+  string worker_version = 1;
+  string region = 2;
+  string hostname = 3;
+  map<string, string> capabilities = 4;
+  string enrollment_token = 5;
+  string csr_pem = 6;
+}
+
+message EnrollWorkerResponse {
+  string worker_id = 1;
+  bool accepted = 2;
+  string reason = 3;
+  string certificate = 4;
+  int64 expires_at = 6;
+  string api_endpoint = 7;
+  string ca_certificate = 8;
+}
+
+message RenewEnrollmentRequest {
+  string worker_id = 1;
+  string csr_pem = 2;
+}
+
+message RenewEnrollmentResponse {
+  bool renewed = 1;
+  string certificate = 2;
+  int64 expires_at = 4;
+  string reason = 5;
+}
+
+message RevokeEnrollmentRequest {
+  string worker_id = 1;
+  string reason = 2;
+}
+
+message RevokeEnrollmentResponse {
+  bool revoked = 1;
+  string message = 2;
+}
+
+message GetWorkerStatusRequest {
+  string worker_id = 1;
+}
+
+message GetWorkerStatusResponse {
+  string worker_id = 1;
+  string status = 2;
+  int64 enrolled_at = 3;
+  int64 last_seen_at = 4;
+  string region = 5;
+  string hostname = 6;
+  string worker_version = 7;
+  map<string, string> capabilities = 8;
+}
+
+message ListWorkersRequest {
+  string region = 1;
+  string status = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListWorkersResponse {
+  repeated WorkerInfo workers = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message WorkerInfo {
+  string worker_id = 1;
+  string status = 2;
+  int64 enrolled_at = 3;
+  int64 last_seen_at = 4;
+  string region = 5;
+  string hostname = 6;
+  string worker_version = 7;
+}

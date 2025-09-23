@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package openseer.v1;
+
+option go_package = "github.com/crisog/openseer/gen/openseer/v1;openseerv1";
+
+import "google/protobuf/timestamp.proto";
+
+service DashboardService {
+  rpc GetDashboardOverview(GetDashboardOverviewRequest) returns (GetDashboardOverviewResponse) {}
+}
+
+message GetDashboardOverviewRequest {
+  // Empty for now
+}
+
+message GetDashboardOverviewResponse {
+  DashboardOverview overview = 1;
+}
+
+message DashboardOverview {
+  int64 total_monitors = 1;
+  int64 enabled_monitors = 2;
+  int64 disabled_monitors = 3;
+  int64 healthy_monitors = 4;
+  int64 unhealthy_monitors = 5;
+  int64 total_runs_24h = 6;
+  int64 failed_runs_24h = 7;
+  double overall_success_rate = 8;
+  repeated MonitorStatus recent_failures = 9;
+  repeated MonitorPerformance slowest_monitors = 10;
+}
+
+message MonitorStatus {
+  string monitor_id = 1;
+  string url = 2;
+  string status = 3;
+  google.protobuf.Timestamp last_failure = 4;
+  string error_message = 5;
+}
+
+message MonitorPerformance {
+  string monitor_id = 1;
+  string url = 2;
+  double avg_response_time_ms = 3;
+  double p95_response_time_ms = 4;
+  double p99_response_time_ms = 5;
+}
