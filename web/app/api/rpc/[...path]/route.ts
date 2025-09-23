@@ -23,7 +23,7 @@ export async function POST(
 
     const responseHeaders = new Headers();
     response.headers.forEach((value, key) => {
-      if (key !== "set-cookie") {
+      if (key !== "set-cookie" && key !== "content-encoding" && key !== "content-length") {
         responseHeaders.set(key, value);
       }
     });
