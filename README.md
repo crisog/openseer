@@ -51,7 +51,7 @@ For detailed architecture documentation, see:
 Start the complete stack with one command:
 
 ```bash
-make up
+task up
 ```
 
 Then access:
@@ -62,14 +62,14 @@ Then access:
 
 1. **Start Database**
    ```bash
-   make db-up       # PostgreSQL + TimescaleDB
-   make migrate-up  # Database migrations
+   task db-up       # PostgreSQL + TimescaleDB
+   task migrate-up  # Database migrations
    ```
 
 2. **Start Services**
    ```bash
-   make backend-up  # Control plane + workers
-   make web-up      # Web interface
+   task backend-up  # Control plane + workers
+   task web-up      # Web interface
    ```
 
 3. **Create Monitors**
@@ -82,16 +82,17 @@ Then access:
 For development with hot-reload:
 
 ```bash
-make dev-full    # Full stack with live reload
+task dev-full    # Full stack with live reload
 ```
 
 ### Common Commands
 
 ```bash
-make logs              # View all service logs
-make scale-workers N=3 # Scale workers
-make psql             # Database CLI
-make build            # Build images
+task logs              # View all service logs
+task scale-workers N=3 # Scale workers
+task psql              # Database CLI
+task build             # Build images
+task --list            # Show all available tasks
 ```
 
 ## Key Design Principles
@@ -108,4 +109,4 @@ Contributions are welcome! Please see the detailed architecture documentation in
 
 ## License
 
-[License information to be added]
+MIT
