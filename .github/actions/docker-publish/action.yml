@@ -14,6 +14,9 @@ inputs:
   tag:
     description: Tag to push (if image input omits tag)
     required: false
+  github-token:
+    description: GitHub token for registry authentication
+    required: true
 runs:
   using: composite
   steps:
@@ -24,7 +27,7 @@ runs:
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ inputs.github-token }}
     - name: Build and push
       uses: docker/build-push-action@v6
       with:
