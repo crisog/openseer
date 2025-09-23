@@ -25,5 +25,7 @@ runs:
     - name: Build
       working-directory: web
       shell: bash
+      env:
+        BETTER_AUTH_SECRET: mock-secret
       run: npm run build
 
