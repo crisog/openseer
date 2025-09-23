@@ -9,6 +9,9 @@
 *.dylib
 bin/
 
+## Env
+.env*
+
 # Test binary, build with `go test -c`
 *.test
 

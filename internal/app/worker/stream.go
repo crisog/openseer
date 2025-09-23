@@ -12,7 +12,9 @@ import (
 
 func (w *Worker) jobRequester(ctx context.Context) {
 	ticker := time.NewTicker(500 * time.Millisecond)
+	heartbeatTicker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
+	defer heartbeatTicker.Stop()
 
 	time.Sleep(100 * time.Millisecond)
 	w.requestJobsIfNeeded()
@@ -23,6 +25,8 @@ func (w *Worker) jobRequester(ctx context.Context) {
 			return
 		case <-ticker.C:
 			w.requestJobsIfNeeded()
+		case <-heartbeatTicker.C:
+			w.logWorkerStatus()
 		}
 	}
 }
@@ -53,8 +57,20 @@ func (w *Worker) requestJobsIfNeeded() {
 		log.Printf("Failed to request jobs: %v", err)
 		return
 	}
+}
 
-	log.Printf("Requested %d jobs (active: %d, max: %d)", available, activeJobCount, w.maxConcurrency)
+func (w *Worker) logWorkerStatus() {
+	w.mu.RLock()
+	activeJobCount := len(w.activeJobs)
+	connected := w.connected
+	workerID := w.id
+	w.mu.RUnlock()
+
+	if connected {
+		log.Printf("Worker %s: active jobs=%d/%d, polling for work", workerID, activeJobCount, w.maxConcurrency)
+	} else {
+		log.Printf("Worker %s: disconnected, attempting to reconnect", workerID)
+	}
 }
 
 func (w *Worker) receiveLoop(ctx context.Context) {
