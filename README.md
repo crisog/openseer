@@ -2,15 +2,6 @@
 
 Self-hosted, horizontally scalable HTTP monitoring with a modern web interface. Multi-user support with secure authentication, real-time dashboards, and comprehensive monitoring management. Built with Go backend and Next.js frontend.
 
-## Features
-
-- **Web Dashboard** - Full-featured UI for monitor management and metrics visualization
-- **Multi-user Support** - Secure authentication with session management
-- **Real-time Metrics** - Live monitoring with P50/P95/P99 latency tracking and uptime statistics
-- **Multi-region Monitoring** - Distributed workers across geographic regions
-- **Secure Architecture** - mTLS for worker communication, session-based auth for users
-- **Time-series Analytics** - TimescaleDB with 1-minute, 1-hour, and 1-day aggregations
-
 ## Architecture
 
 ```mermaid
@@ -35,12 +26,12 @@ graph TB
     Database --- TSSchema
 ```
 
-OpenSeer consists of three main components:
+OpenSeer consists of four main components:
 
-- **Web Frontend (Next.js)** - Modern dashboard with real-time metrics visualization
-- **Control Plane (Go)** - Horizontally scalable service managing workers and job scheduling
-- **Workers (Go)** - Distributed agents executing HTTP checks across geographic regions
-- **Database (PostgreSQL + TimescaleDB)** - Time-series storage with automatic aggregation
+- **Web Frontend (Next.js)** - Modern dashboard with real-time metrics visualization, multi-user support with secure session-based authentication
+- **Control Plane (Go)** - Horizontally scalable service managing workers and job scheduling with pull-based architecture
+- **Workers (Go)** - Distributed agents executing HTTP checks across geographic regions, communicating via mTLS gRPC
+- **Database (PostgreSQL + TimescaleDB)** - Time-series storage with automatic aggregation (1-minute, 1-hour, and 1-day intervals), P50/P95/P99 latency tracking, and uptime statistics
 
 For detailed architecture documentation, see:
 - [Control Plane Architecture](cmd/control-plane/ARCHITECTURE.md)
