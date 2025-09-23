@@ -272,7 +272,6 @@ func (d *Dispatcher) HandlePong(workerID string) {
 	if worker, exists := d.workers[workerID]; exists {
 		worker.LastSeen = time.Now()
 		worker.PendingPings = 0
-		log.Printf("Received pong from worker %s", workerID)
 	}
 }
 
