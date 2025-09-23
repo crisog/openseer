@@ -2,12 +2,13 @@ import { type NextRequest } from "next/server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
     const controlPlaneUrl = process.env.CONTROL_PLANE_URL || "http://localhost:8082";
 
-    const servicePath = params.path.join("/");
+    const resolvedParams = await params;
+    const servicePath = resolvedParams.path.join("/");
     const body = await request.text();
     const cookieHeader = request.headers.get("cookie");
 
