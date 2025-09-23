@@ -9,12 +9,19 @@ graph TB
     Users[👥 Users]
     WebUI[🌐 Web UI<br/>Next.js :3000]
     ControlPlane[🎯 Control Plane<br/>Go :8081/:8082]
-    Workers[⚡ Workers<br/>Go - Distributed]
     Database[(🗄️ TimescaleDB<br/>PostgreSQL)]
+
+    subgraph "Workers - Distributed"
+        WorkerUS[⚡ Worker US-East<br/>Go - us-east-1]
+        WorkerEU[⚡ Worker EU-West<br/>Go - eu-west-1]
+        WorkerAP[⚡ Worker AP-South<br/>Go - ap-south-1]
+    end
 
     Users --> WebUI
     WebUI -.->|Session Auth<br/>Connect RPC| ControlPlane
-    Workers <-.->|mTLS gRPC<br/>Bidirectional Stream| ControlPlane
+    WorkerUS <-.->|mTLS gRPC<br/>Bidirectional Stream| ControlPlane
+    WorkerEU <-.->|mTLS gRPC<br/>Bidirectional Stream| ControlPlane
+    WorkerAP <-.->|mTLS gRPC<br/>Bidirectional Stream| ControlPlane
     ControlPlane --> Database
 
     subgraph "Database Schemas"
