@@ -114,7 +114,7 @@ services:
       BETTER_AUTH_SECRET: dGhpc0lzQVNlY3VyZVNlY3JldEtleUZvckJldHRlckF1dGhUaGF0SXNMb25nRW5vdWdoVG9CZVNlY3VyZQ==
       BETTER_AUTH_URL: http://localhost:3000
       NODE_ENV: development
-      NEXT_PUBLIC_CONTROL_PLANE_URL: http://localhost:8082
+      CONTROL_PLANE_URL: http://control-plane:8082
     ports:
       - "3000:3000"
     volumes:
