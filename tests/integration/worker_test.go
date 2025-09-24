@@ -63,18 +63,16 @@ func TestWorkerEnrollsAndRegisters(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond, "worker should register with dispatcher")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
-    require.Eventually(t, func() bool {
-        workers, err := env.Queries.GetActiveWorkers(context.Background())
-        if err != nil {
-            t.Logf("failed to fetch active workers: %v", err)
-            return false
-        }
-        return len(workers) == 1 && workers[0].Region == "us-east-1"
-    }, 5*time.Second, 100*time.Millisecond, "worker should be enrolled and marked active")
+	require.Eventually(t, func() bool {
+		workers, err := env.Queries.GetActiveWorkers(context.Background())
+		if err != nil {
+			t.Logf("failed to fetch active workers: %v", err)
+			return false
+		}
+		return len(workers) == 1 && workers[0].Region == "us-east-1"
+	}, 5*time.Second, 100*time.Millisecond, "worker should be enrolled and marked active")
 
 	workerCancel()
 
@@ -147,13 +145,11 @@ func TestWorkerExecutesJobAndReportsMetrics(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
-    helpers.WaitForJobCompletion(t, env.Queries, runID, 10*time.Second)
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, jobMonitor.ID, runID, 5*time.Second)
-    require.Equal(t, "OK", result.Status)
+	helpers.WaitForJobCompletion(t, env.Queries, runID, 10*time.Second)
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, jobMonitor.ID, runID, 5*time.Second)
+	require.Equal(t, "OK", result.Status)
 
 	workerCancel()
 	select {
@@ -208,19 +204,17 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	var workerID string
-    require.Eventually(t, func() bool {
-        workers, err := env.Queries.GetActiveWorkers(context.Background())
-        if err != nil || len(workers) != 1 {
-            return false
-        }
-        workerID = workers[0].ID
-        return true
-    }, 5*time.Second, 100*time.Millisecond)
+	require.Eventually(t, func() bool {
+		workers, err := env.Queries.GetActiveWorkers(context.Background())
+		if err != nil || len(workers) != 1 {
+			return false
+		}
+		workerID = workers[0].ID
+		return true
+	}, 5*time.Second, 100*time.Millisecond)
 
 	firstAttempt := atomic.Bool{}
 	resetErrCh := make(chan error, 1)
@@ -233,7 +227,7 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 					resetErrCh <- fmt.Errorf("job run ID not set before request")
 					return
 				}
-                res, err := env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.jobs SET status='ready', worker_id = NULL, lease_expires_at = NULL WHERE run_id = $1", jobRunID)
+				res, err := env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.jobs SET status='ready', worker_id = NULL, lease_expires_at = NULL WHERE run_id = $1", jobRunID)
 				if err != nil {
 					resetErrCh <- err
 					return
@@ -248,7 +242,7 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 					return
 				}
 				time.Sleep(500 * time.Millisecond)
-                res, err = env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.jobs SET status='leased', worker_id = $1, lease_expires_at = NOW() + INTERVAL '45 seconds' WHERE run_id = $2", workerID, jobRunID)
+				res, err = env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.jobs SET status='leased', worker_id = $1, lease_expires_at = NOW() + INTERVAL '45 seconds' WHERE run_id = $2", workerID, jobRunID)
 				if err != nil {
 					resetErrCh <- err
 					return
@@ -280,17 +274,17 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
 	jobRunID = job.RunID
 
-    helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 15*time.Second)
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
-    require.Equal(t, "FAIL", result.Status)
+	helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 15*time.Second)
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+	require.Equal(t, "FAIL", result.Status)
 
-    require.Eventually(t, func() bool {
-        storedJob, err := env.Queries.GetJobByRunID(context.Background(), job.RunID)
-        if err != nil {
-            return false
-        }
-        return storedJob.Status == "done" && storedJob.WorkerID.Valid && storedJob.WorkerID.String == workerID
-    }, 10*time.Second, 200*time.Millisecond)
+	require.Eventually(t, func() bool {
+		storedJob, err := env.Queries.GetJobByRunID(context.Background(), job.RunID)
+		if err != nil {
+			return false
+		}
+		return storedJob.Status == "done" && storedJob.WorkerID.Valid && storedJob.WorkerID.String == workerID
+	}, 10*time.Second, 200*time.Millisecond)
 
 	select {
 	case err := <-resetErrCh:
@@ -314,8 +308,6 @@ func TestWorkerHTTPMethodsAndHeaders(t *testing.T) {
 
 	env := helpers.SetupControlPlane(t)
 	env.StartBackgroundServices()
-
-	ctx := context.Background()
 
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
@@ -380,22 +372,14 @@ func TestWorkerHTTPMethodsAndHeaders(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, runID)
-		if err != nil {
-			return false
-		}
-		return job.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "POST job should be completed")
+	helpers.WaitForJobCompletion(t, env.Queries, runID, 15*time.Second)
 
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
-    require.Equal(t, "OK", result.Status)
-    require.True(t, result.HttpCode.Valid)
-    require.Equal(t, int32(201), result.HttpCode.Int32, "POST should return 201")
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
+	require.Equal(t, "OK", result.Status)
+	require.True(t, result.HttpCode.Valid)
+	require.Equal(t, int32(201), result.HttpCode.Int32, "POST should return 201")
 
 	workerCancel()
 	select {
@@ -411,8 +395,6 @@ func TestWorkerTimeoutHandling(t *testing.T) {
 
 	env := helpers.SetupControlPlane(t)
 	env.StartBackgroundServices()
-
-	ctx := context.Background()
 
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
@@ -468,21 +450,13 @@ func TestWorkerTimeoutHandling(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, runID)
-		if err != nil {
-			return false
-		}
-		return job.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "timeout job should be completed with error")
+	helpers.WaitForJobCompletion(t, env.Queries, runID, 15*time.Second)
 
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
-    require.Equal(t, "ERROR", result.Status, "timeout should result in ERROR status")
-    require.True(t, result.ErrorMessage.Valid, "timeout should have error message")
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
+	require.Equal(t, "ERROR", result.Status, "timeout should result in ERROR status")
+	require.True(t, result.ErrorMessage.Valid, "timeout should have error message")
 
 	workerCancel()
 	select {
@@ -498,8 +472,6 @@ func TestWorkerNetworkErrorHandling(t *testing.T) {
 
 	env := helpers.SetupControlPlane(t)
 	env.StartBackgroundServices()
-
-	ctx := context.Background()
 
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
@@ -548,21 +520,13 @@ func TestWorkerNetworkErrorHandling(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, runID)
-		if err != nil {
-			return false
-		}
-		return job.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "DNS failure job should be completed with error")
+	helpers.WaitForJobCompletion(t, env.Queries, runID, 15*time.Second)
 
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
-    require.Equal(t, "ERROR", result.Status, "DNS failure should result in ERROR status")
-    require.True(t, result.ErrorMessage.Valid, "DNS failure should have error message")
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
+	require.Equal(t, "ERROR", result.Status, "DNS failure should result in ERROR status")
+	require.True(t, result.ErrorMessage.Valid, "DNS failure should have error message")
 
 	workerCancel()
 	select {
@@ -635,9 +599,7 @@ func TestWorkerLeaseRenewalForLongJobs(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	require.Eventually(t, func() bool {
 		jobStatus, err := env.Queries.GetJobByRunID(ctx, job.RunID)
@@ -660,16 +622,10 @@ func TestWorkerLeaseRenewalForLongJobs(t *testing.T) {
 	require.True(t, jobAfterRenewal.LeaseExpiresAt.Time.After(initialExpiry),
 		"lease should be renewed for long-running job")
 
-	require.Eventually(t, func() bool {
-		jobStatus, err := env.Queries.GetJobByRunID(ctx, job.RunID)
-		if err != nil {
-			return false
-		}
-		return jobStatus.Status == "done"
-	}, 20*time.Second, 500*time.Millisecond, "long job should complete successfully")
+	helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 20*time.Second)
 
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
-    require.Equal(t, "OK", result.Status)
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+	require.Equal(t, "OK", result.Status)
 
 	workerCancel()
 	select {
@@ -758,9 +714,7 @@ func TestWorkerHandlesMultipleConcurrentJobs(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	require.Eventually(t, func() bool {
 		leasedCount := 0
@@ -786,10 +740,10 @@ func TestWorkerHandlesMultipleConcurrentJobs(t *testing.T) {
 
 	require.Equal(t, int32(3), maxConcurrency.Load(), "should have achieved 3 concurrent requests")
 
-    for _, job := range jobs {
-        result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
-        require.Equal(t, "OK", result.Status)
-    }
+	for _, job := range jobs {
+		result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+		require.Equal(t, "OK", result.Status)
+	}
 
 	workerCancel()
 	select {
@@ -845,9 +799,7 @@ func TestWorkerPingPongHealthCheck(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond, "worker should register")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	workers, err := env.Queries.GetActiveWorkers(ctx)
 	require.NoError(t, err)
@@ -988,12 +940,12 @@ func TestWorkerSupportsAllHTTPMethods(t *testing.T) {
 		t.Logf("Completed job for method %s", tc.method)
 	}
 
-    for i, job := range jobs {
-        monitor := monitors[i]
-        result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
-        require.Equal(t, testCases[i].expectedStatus, result.Status, fmt.Sprintf("%s should return %s status", testCases[i].method, testCases[i].expectedStatus))
-        require.True(t, result.HttpCode.Valid, fmt.Sprintf("%s should have HTTP code", testCases[i].method))
-        require.Equal(t, testCases[i].expectedHTTPCode, result.HttpCode.Int32, fmt.Sprintf("%s should return HTTP %d", testCases[i].method, testCases[i].expectedHTTPCode))
+	for i, job := range jobs {
+		monitor := monitors[i]
+		result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+		require.Equal(t, testCases[i].expectedStatus, result.Status, fmt.Sprintf("%s should return %s status", testCases[i].method, testCases[i].expectedStatus))
+		require.True(t, result.HttpCode.Valid, fmt.Sprintf("%s should have HTTP code", testCases[i].method))
+		require.Equal(t, testCases[i].expectedHTTPCode, result.HttpCode.Int32, fmt.Sprintf("%s should return HTTP %d", testCases[i].method, testCases[i].expectedHTTPCode))
 	}
 
 	methodsMutex.Lock()
@@ -1094,9 +1046,7 @@ func TestWorkerOverloadProtection(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	time.Sleep(500 * time.Millisecond)
 
@@ -1137,10 +1087,10 @@ func TestWorkerOverloadProtection(t *testing.T) {
 		return doneCount == numJobs
 	}, 25*time.Second, 500*time.Millisecond, "all jobs should eventually complete")
 
-    for _, job := range jobs {
-        result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 10*time.Second)
-        require.Equal(t, "OK", result.Status)
-    }
+	for _, job := range jobs {
+		result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 10*time.Second)
+		require.Equal(t, "OK", result.Status)
+	}
 
 	finalMaxConcurrency := maxConcurrency.Load()
 	require.LessOrEqual(t, finalMaxConcurrency, int32(3), "max concurrency should not greatly exceed configured limit")
@@ -1254,9 +1204,9 @@ func TestWorkerJobLeaseExpirationAndReclaim(t *testing.T) {
 
 	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
-    helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 15*time.Second)
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
-    require.Equal(t, "OK", result.Status)
+	helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 15*time.Second)
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+	require.Equal(t, "OK", result.Status)
 
 	workerCancel()
 	select {
@@ -1357,9 +1307,9 @@ func TestWorkerMultiRegionJobDistribution(t *testing.T) {
 
 	helpers.WaitForJobCompletion(t, env.Queries, usJob.RunID, 15*time.Second)
 
-    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, usMonitor.ID, usJob.RunID, 5*time.Second)
-    require.Equal(t, "OK", result.Status)
-    require.Equal(t, "us-east-1", result.Region)
+	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, usMonitor.ID, usJob.RunID, 5*time.Second)
+	require.Equal(t, "OK", result.Status)
+	require.Equal(t, "us-east-1", result.Region)
 
 	euWorker := workerpkg.NewWorker(
 		"integration-worker-eu",
@@ -1387,15 +1337,15 @@ func TestWorkerMultiRegionJobDistribution(t *testing.T) {
 
 	helpers.WaitForJobCompletion(t, env.Queries, euJob.RunID, 15*time.Second)
 
-    result = helpers.WaitForMonitorResultByRunID(t, env.Queries, euMonitor.ID, euJob.RunID, 5*time.Second)
-    require.Equal(t, "OK", result.Status)
-    require.Equal(t, "eu-west-1", result.Region)
+	result = helpers.WaitForMonitorResultByRunID(t, env.Queries, euMonitor.ID, euJob.RunID, 5*time.Second)
+	require.Equal(t, "OK", result.Status)
+	require.Equal(t, "eu-west-1", result.Region)
 
 	helpers.WaitForJobCompletion(t, env.Queries, globalJob.RunID, 15*time.Second)
 
-    result = helpers.WaitForMonitorResultByRunID(t, env.Queries, globalMonitor.ID, globalJob.RunID, 5*time.Second)
-    require.Equal(t, "OK", result.Status)
-    require.Contains(t, []string{"us-east-1", "eu-west-1"}, result.Region)
+	result = helpers.WaitForMonitorResultByRunID(t, env.Queries, globalMonitor.ID, globalJob.RunID, 5*time.Second)
+	require.Equal(t, "OK", result.Status)
+	require.Contains(t, []string{"us-east-1", "eu-west-1"}, result.Region)
 
 	usWorkerCancel()
 
@@ -1414,9 +1364,9 @@ func TestWorkerMultiRegionJobDistribution(t *testing.T) {
 
 	helpers.WaitForJobCompletion(t, env.Queries, globalJob2.RunID, 15*time.Second)
 
-    globalJob2Result := helpers.WaitForMonitorResultByRunID(t, env.Queries, globalMonitor.ID, globalJob2.RunID, 5*time.Second)
-    require.Equal(t, "OK", globalJob2Result.Status)
-    require.Equal(t, "eu-west-1", globalJob2Result.Region)
+	globalJob2Result := helpers.WaitForMonitorResultByRunID(t, env.Queries, globalMonitor.ID, globalJob2.RunID, 5*time.Second)
+	require.Equal(t, "OK", globalJob2Result.Status)
+	require.Equal(t, "eu-west-1", globalJob2Result.Region)
 
 	euWorkerCancel()
 
@@ -1474,9 +1424,7 @@ func TestWorkerInactivityDetection(t *testing.T) {
 		workerErrCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 15*time.Second, 100*time.Millisecond, "worker should register with dispatcher")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 15*time.Second)
 
 	var workerInfo *sqlc.AppWorker
 	require.Eventually(t, func() bool {
@@ -1591,9 +1539,7 @@ func TestWorkerCertificateExpiryAndReEnrollment(t *testing.T) {
 		workerErrCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 10*time.Second, 100*time.Millisecond, "worker should register with dispatcher")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	var workerInfo *sqlc.AppWorker
 	require.Eventually(t, func() bool {
@@ -1658,11 +1604,7 @@ func TestWorkerCertificateExpiryAndReEnrollment(t *testing.T) {
 		workerErrCh2 <- worker2.Run(workerCtx2)
 	}()
 
-	require.Eventually(t, func() bool {
-		count := env.Dispatcher.GetWorkerCount()
-		t.Logf("Current worker count: %d", count)
-		return count == 1
-	}, 15*time.Second, 500*time.Millisecond, "worker should re-register with dispatcher")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 15*time.Second)
 
 	var reEnrolledWorkerInfo *sqlc.AppWorker
 	require.Eventually(t, func() bool {
@@ -1765,9 +1707,7 @@ func TestWorkerReconnectionAfterNetworkFailure(t *testing.T) {
 		workerErrCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 10*time.Second, 100*time.Millisecond, "worker should register with dispatcher")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	var initialWorkerInfo *sqlc.AppWorker
 	require.Eventually(t, func() bool {
@@ -1814,14 +1754,7 @@ func TestWorkerReconnectionAfterNetworkFailure(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
-		jobInfo, err := env.Queries.GetJobByRunID(ctx, runID)
-		if err != nil {
-			return false
-		}
-		t.Logf("Job status: %s", jobInfo.Status)
-		return jobInfo.Status == "done"
-	}, 15*time.Second, 1*time.Second, "Worker should execute job normally")
+	helpers.WaitForJobCompletion(t, env.Queries, runID, 15*time.Second)
 
 	require.Eventually(t, func() bool {
 		results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{

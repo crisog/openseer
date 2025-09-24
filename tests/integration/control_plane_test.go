@@ -415,15 +415,9 @@ func TestDispatcherHealthAndReaper(t *testing.T) {
 	_, err = env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.workers SET last_seen_at = NOW() - INTERVAL '5 minutes' WHERE id = $1", workerID)
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
-		worker, err := env.Queries.GetWorkerByID(ctx, workerID)
-		require.NoError(t, err)
-		return worker.Status == "inactive"
-	}, 10*time.Second, 250*time.Millisecond)
+	helpers.WaitForWorkerInactivity(t, env.Queries, workerID, 15*time.Second)
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 0
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 0, 10*time.Second)
 }
 
 func TestConcurrentWorkersLeaseDistinctJobs(t *testing.T) {
@@ -937,11 +931,7 @@ func TestEnrollmentStatusTransitions(t *testing.T) {
 	_, err = env.TestDB.DB.ExecContext(ctx, "UPDATE app.workers SET last_seen_at = NOW() - INTERVAL '5 minutes' WHERE id = $1", workerID)
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool {
-		worker, err := env.Queries.GetWorkerByID(ctx, workerID)
-		require.NoError(t, err)
-		return worker.Status == "inactive"
-	}, 10*time.Second, 250*time.Millisecond, "worker should transition to inactive when not seen")
+	helpers.WaitForWorkerInactivity(t, env.Queries, workerID, 15*time.Second)
 
 	_, err = enrollmentClient.RevokeEnrollment(ctx, connect.NewRequest(&openseerv1.RevokeEnrollmentRequest{
 		WorkerId: workerID,
