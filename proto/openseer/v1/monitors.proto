@@ -11,6 +11,7 @@ service MonitorsService {
   rpc CreateMonitor(CreateMonitorRequest) returns (CreateMonitorResponse) {}
   rpc GetMonitor(GetMonitorRequest) returns (GetMonitorResponse) {}
   rpc UpdateMonitor(UpdateMonitorRequest) returns (UpdateMonitorResponse) {}
+  rpc DeleteMonitor(DeleteMonitorRequest) returns (DeleteMonitorResponse) {}
   rpc ListMonitors(ListMonitorsRequest) returns (ListMonitorsResponse) {}
   rpc GetMonitorResults(GetMonitorResultsRequest) returns (GetMonitorResultsResponse) {}
   rpc GetMonitorMetrics(GetMonitorMetricsRequest) returns (GetMonitorMetricsResponse) {}
@@ -59,6 +60,12 @@ message UpdateMonitorRequest {
 message UpdateMonitorResponse {
   Monitor monitor = 1;
 }
+
+message DeleteMonitorRequest {
+  string id = 1;
+}
+
+message DeleteMonitorResponse {}
 
 message ListMonitorsRequest {
   // Empty for now, can add pagination later

@@ -42,6 +42,9 @@ const (
 	// MonitorsServiceUpdateMonitorProcedure is the fully-qualified name of the MonitorsService's
 	// UpdateMonitor RPC.
 	MonitorsServiceUpdateMonitorProcedure = "/openseer.v1.MonitorsService/UpdateMonitor"
+	// MonitorsServiceDeleteMonitorProcedure is the fully-qualified name of the MonitorsService's
+	// DeleteMonitor RPC.
+	MonitorsServiceDeleteMonitorProcedure = "/openseer.v1.MonitorsService/DeleteMonitor"
 	// MonitorsServiceListMonitorsProcedure is the fully-qualified name of the MonitorsService's
 	// ListMonitors RPC.
 	MonitorsServiceListMonitorsProcedure = "/openseer.v1.MonitorsService/ListMonitors"
@@ -64,6 +67,7 @@ type MonitorsServiceClient interface {
 	CreateMonitor(context.Context, *connect.Request[v1.CreateMonitorRequest]) (*connect.Response[v1.CreateMonitorResponse], error)
 	GetMonitor(context.Context, *connect.Request[v1.GetMonitorRequest]) (*connect.Response[v1.GetMonitorResponse], error)
 	UpdateMonitor(context.Context, *connect.Request[v1.UpdateMonitorRequest]) (*connect.Response[v1.UpdateMonitorResponse], error)
+	DeleteMonitor(context.Context, *connect.Request[v1.DeleteMonitorRequest]) (*connect.Response[v1.DeleteMonitorResponse], error)
 	ListMonitors(context.Context, *connect.Request[v1.ListMonitorsRequest]) (*connect.Response[v1.ListMonitorsResponse], error)
 	GetMonitorResults(context.Context, *connect.Request[v1.GetMonitorResultsRequest]) (*connect.Response[v1.GetMonitorResultsResponse], error)
 	GetMonitorMetrics(context.Context, *connect.Request[v1.GetMonitorMetricsRequest]) (*connect.Response[v1.GetMonitorMetricsResponse], error)
@@ -98,6 +102,12 @@ func NewMonitorsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+MonitorsServiceUpdateMonitorProcedure,
 			connect.WithSchema(monitorsServiceMethods.ByName("UpdateMonitor")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteMonitor: connect.NewClient[v1.DeleteMonitorRequest, v1.DeleteMonitorResponse](
+			httpClient,
+			baseURL+MonitorsServiceDeleteMonitorProcedure,
+			connect.WithSchema(monitorsServiceMethods.ByName("DeleteMonitor")),
 			connect.WithClientOptions(opts...),
 		),
 		listMonitors: connect.NewClient[v1.ListMonitorsRequest, v1.ListMonitorsResponse](
@@ -138,6 +148,7 @@ type monitorsServiceClient struct {
 	createMonitor            *connect.Client[v1.CreateMonitorRequest, v1.CreateMonitorResponse]
 	getMonitor               *connect.Client[v1.GetMonitorRequest, v1.GetMonitorResponse]
 	updateMonitor            *connect.Client[v1.UpdateMonitorRequest, v1.UpdateMonitorResponse]
+	deleteMonitor            *connect.Client[v1.DeleteMonitorRequest, v1.DeleteMonitorResponse]
 	listMonitors             *connect.Client[v1.ListMonitorsRequest, v1.ListMonitorsResponse]
 	getMonitorResults        *connect.Client[v1.GetMonitorResultsRequest, v1.GetMonitorResultsResponse]
 	getMonitorMetrics        *connect.Client[v1.GetMonitorMetricsRequest, v1.GetMonitorMetricsResponse]
@@ -158,6 +169,11 @@ func (c *monitorsServiceClient) GetMonitor(ctx context.Context, req *connect.Req
 // UpdateMonitor calls openseer.v1.MonitorsService.UpdateMonitor.
 func (c *monitorsServiceClient) UpdateMonitor(ctx context.Context, req *connect.Request[v1.UpdateMonitorRequest]) (*connect.Response[v1.UpdateMonitorResponse], error) {
 	return c.updateMonitor.CallUnary(ctx, req)
+}
+
+// DeleteMonitor calls openseer.v1.MonitorsService.DeleteMonitor.
+func (c *monitorsServiceClient) DeleteMonitor(ctx context.Context, req *connect.Request[v1.DeleteMonitorRequest]) (*connect.Response[v1.DeleteMonitorResponse], error) {
+	return c.deleteMonitor.CallUnary(ctx, req)
 }
 
 // ListMonitors calls openseer.v1.MonitorsService.ListMonitors.
@@ -190,6 +206,7 @@ type MonitorsServiceHandler interface {
 	CreateMonitor(context.Context, *connect.Request[v1.CreateMonitorRequest]) (*connect.Response[v1.CreateMonitorResponse], error)
 	GetMonitor(context.Context, *connect.Request[v1.GetMonitorRequest]) (*connect.Response[v1.GetMonitorResponse], error)
 	UpdateMonitor(context.Context, *connect.Request[v1.UpdateMonitorRequest]) (*connect.Response[v1.UpdateMonitorResponse], error)
+	DeleteMonitor(context.Context, *connect.Request[v1.DeleteMonitorRequest]) (*connect.Response[v1.DeleteMonitorResponse], error)
 	ListMonitors(context.Context, *connect.Request[v1.ListMonitorsRequest]) (*connect.Response[v1.ListMonitorsResponse], error)
 	GetMonitorResults(context.Context, *connect.Request[v1.GetMonitorResultsRequest]) (*connect.Response[v1.GetMonitorResultsResponse], error)
 	GetMonitorMetrics(context.Context, *connect.Request[v1.GetMonitorMetricsRequest]) (*connect.Response[v1.GetMonitorMetricsResponse], error)
@@ -220,6 +237,12 @@ func NewMonitorsServiceHandler(svc MonitorsServiceHandler, opts ...connect.Handl
 		MonitorsServiceUpdateMonitorProcedure,
 		svc.UpdateMonitor,
 		connect.WithSchema(monitorsServiceMethods.ByName("UpdateMonitor")),
+		connect.WithHandlerOptions(opts...),
+	)
+	monitorsServiceDeleteMonitorHandler := connect.NewUnaryHandler(
+		MonitorsServiceDeleteMonitorProcedure,
+		svc.DeleteMonitor,
+		connect.WithSchema(monitorsServiceMethods.ByName("DeleteMonitor")),
 		connect.WithHandlerOptions(opts...),
 	)
 	monitorsServiceListMonitorsHandler := connect.NewUnaryHandler(
@@ -260,6 +283,8 @@ func NewMonitorsServiceHandler(svc MonitorsServiceHandler, opts ...connect.Handl
 			monitorsServiceGetMonitorHandler.ServeHTTP(w, r)
 		case MonitorsServiceUpdateMonitorProcedure:
 			monitorsServiceUpdateMonitorHandler.ServeHTTP(w, r)
+		case MonitorsServiceDeleteMonitorProcedure:
+			monitorsServiceDeleteMonitorHandler.ServeHTTP(w, r)
 		case MonitorsServiceListMonitorsProcedure:
 			monitorsServiceListMonitorsHandler.ServeHTTP(w, r)
 		case MonitorsServiceGetMonitorResultsProcedure:
@@ -289,6 +314,10 @@ func (UnimplementedMonitorsServiceHandler) GetMonitor(context.Context, *connect.
 
 func (UnimplementedMonitorsServiceHandler) UpdateMonitor(context.Context, *connect.Request[v1.UpdateMonitorRequest]) (*connect.Response[v1.UpdateMonitorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.MonitorsService.UpdateMonitor is not implemented"))
+}
+
+func (UnimplementedMonitorsServiceHandler) DeleteMonitor(context.Context, *connect.Request[v1.DeleteMonitorRequest]) (*connect.Response[v1.DeleteMonitorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.MonitorsService.DeleteMonitor is not implemented"))
 }
 
 func (UnimplementedMonitorsServiceHandler) ListMonitors(context.Context, *connect.Request[v1.ListMonitorsRequest]) (*connect.Response[v1.ListMonitorsResponse], error) {

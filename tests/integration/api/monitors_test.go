@@ -536,3 +536,101 @@ func TestMonitorsAPI_GetMonitorResults(t *testing.T) {
 	})
 }
 
+func TestMonitorsAPI_DeleteMonitor(t *testing.T) {
+	require.NoError(t, os.Setenv("BETTER_AUTH_SECRET", "test-secret-for-integration-tests"))
+	defer os.Unsetenv("BETTER_AUTH_SECRET")
+
+	env := helpers.SetupControlPlane(t)
+	webServer := env.StartWebServer(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	sessionToken, userID, err := helpers.MintSession(ctx, t, env.TestDB.DB)
+	require.NoError(t, err)
+
+	monitorsClient := openseerv1connect.NewMonitorsServiceClient(
+		http.DefaultClient,
+		webServer.URL,
+	)
+
+	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
+		UserID:  userID,
+		Name:    "Delete Test Monitor",
+		URL:     "https://example.com/delete",
+		Regions: []string{"us-east-1"},
+	})
+
+	t.Run("WithoutAuth_ReturnsUnauthenticated", func(t *testing.T) {
+		req := connect.NewRequest(&openseerv1.DeleteMonitorRequest{
+			Id: monitor.ID,
+		})
+
+		_, err := monitorsClient.DeleteMonitor(ctx, req)
+		require.Error(t, err)
+		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	})
+
+	t.Run("WithValidID_DeletesMonitor", func(t *testing.T) {
+		req := connect.NewRequest(&openseerv1.DeleteMonitorRequest{
+			Id: monitor.ID,
+		})
+		req.Header().Set("Authorization", "Bearer "+sessionToken)
+
+		resp, err := monitorsClient.DeleteMonitor(ctx, req)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Msg)
+
+		_, err = env.Queries.GetMonitor(ctx, monitor.ID)
+		require.Error(t, err, "GetMonitor should fail for deleted monitor")
+
+		deletedMonitor, err := env.Queries.GetMonitorIncludingDeleted(ctx, monitor.ID)
+		require.NoError(t, err)
+		require.NotNil(t, deletedMonitor)
+		require.True(t, deletedMonitor.DeletedAt.Valid, "deleted monitor should have deleted_at set")
+
+		listReq := connect.NewRequest(&openseerv1.ListMonitorsRequest{})
+		listReq.Header().Set("Authorization", "Bearer "+sessionToken)
+		listResp, err := monitorsClient.ListMonitors(ctx, listReq)
+		require.NoError(t, err)
+
+		for _, m := range listResp.Msg.Monitors {
+			require.NotEqual(t, monitor.ID, m.Id, "Deleted monitor should not appear in list")
+		}
+	})
+
+	t.Run("WithNonExistentID_ReturnsSuccess", func(t *testing.T) {
+		req := connect.NewRequest(&openseerv1.DeleteMonitorRequest{
+			Id: uuid.NewString(),
+		})
+		req.Header().Set("Authorization", "Bearer "+sessionToken)
+
+		resp, err := monitorsClient.DeleteMonitor(ctx, req)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Msg)
+	})
+
+	t.Run("WithOtherUserMonitor_DoesNotDelete", func(t *testing.T) {
+		otherUserMonitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
+			UserID:  "other-user-id",
+			Name:    "Other User Monitor",
+			URL:     "https://example.com/other-delete",
+			Regions: []string{"us-east-1"},
+		})
+
+		req := connect.NewRequest(&openseerv1.DeleteMonitorRequest{
+			Id: otherUserMonitor.ID,
+		})
+		req.Header().Set("Authorization", "Bearer "+sessionToken)
+
+		resp, err := monitorsClient.DeleteMonitor(ctx, req)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Msg)
+
+		stillExists, err := env.Queries.GetMonitor(ctx, otherUserMonitor.ID)
+		require.NoError(t, err)
+		require.NotNil(t, stillExists)
+		require.Equal(t, otherUserMonitor.ID, stillExists.ID)
+	})
+}
+

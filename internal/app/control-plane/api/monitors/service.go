@@ -509,8 +509,8 @@ func (s *MonitorsService) dbMonitorToProto(check *sqlc.AppMonitor) (*openseerv1.
 
 func (s *MonitorsService) DeleteMonitor(
 	ctx context.Context,
-	req *connect.Request[openseerv1.GetMonitorRequest],
-) (*connect.Response[openseerv1.GetMonitorResponse], error) {
+	req *connect.Request[openseerv1.DeleteMonitorRequest],
+) (*connect.Response[openseerv1.DeleteMonitorResponse], error) {
 	user, ok := session.GetUserFromContext(ctx)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
@@ -531,7 +531,7 @@ func (s *MonitorsService) DeleteMonitor(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	return connect.NewResponse(&openseerv1.GetMonitorResponse{}), nil
+	return connect.NewResponse(&openseerv1.DeleteMonitorResponse{}), nil
 }
 
 func (s *MonitorsService) GetMonitorUptime(ctx context.Context, req *connect.Request[openseerv1.GetMonitorUptimeRequest]) (*connect.Response[openseerv1.GetMonitorUptimeResponse], error) {

@@ -431,6 +431,86 @@ func (x *UpdateMonitorResponse) GetMonitor() *Monitor {
 	return nil
 }
 
+type DeleteMonitorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMonitorRequest) Reset() {
+	*x = DeleteMonitorRequest{}
+	mi := &file_openseer_v1_monitors_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMonitorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMonitorRequest) ProtoMessage() {}
+
+func (x *DeleteMonitorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_openseer_v1_monitors_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMonitorRequest.ProtoReflect.Descriptor instead.
+func (*DeleteMonitorRequest) Descriptor() ([]byte, []int) {
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DeleteMonitorRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DeleteMonitorResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMonitorResponse) Reset() {
+	*x = DeleteMonitorResponse{}
+	mi := &file_openseer_v1_monitors_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMonitorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMonitorResponse) ProtoMessage() {}
+
+func (x *DeleteMonitorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_openseer_v1_monitors_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMonitorResponse.ProtoReflect.Descriptor instead.
+func (*DeleteMonitorResponse) Descriptor() ([]byte, []int) {
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{7}
+}
+
 type ListMonitorsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -439,7 +519,7 @@ type ListMonitorsRequest struct {
 
 func (x *ListMonitorsRequest) Reset() {
 	*x = ListMonitorsRequest{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[6]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -451,7 +531,7 @@ func (x *ListMonitorsRequest) String() string {
 func (*ListMonitorsRequest) ProtoMessage() {}
 
 func (x *ListMonitorsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[6]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -464,7 +544,7 @@ func (x *ListMonitorsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMonitorsRequest.ProtoReflect.Descriptor instead.
 func (*ListMonitorsRequest) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{6}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{8}
 }
 
 type ListMonitorsResponse struct {
@@ -476,7 +556,7 @@ type ListMonitorsResponse struct {
 
 func (x *ListMonitorsResponse) Reset() {
 	*x = ListMonitorsResponse{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[7]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -488,7 +568,7 @@ func (x *ListMonitorsResponse) String() string {
 func (*ListMonitorsResponse) ProtoMessage() {}
 
 func (x *ListMonitorsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[7]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -501,7 +581,7 @@ func (x *ListMonitorsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMonitorsResponse.ProtoReflect.Descriptor instead.
 func (*ListMonitorsResponse) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{7}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListMonitorsResponse) GetMonitors() []*Monitor {
@@ -521,7 +601,7 @@ type GetMonitorResultsRequest struct {
 
 func (x *GetMonitorResultsRequest) Reset() {
 	*x = GetMonitorResultsRequest{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[8]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -533,7 +613,7 @@ func (x *GetMonitorResultsRequest) String() string {
 func (*GetMonitorResultsRequest) ProtoMessage() {}
 
 func (x *GetMonitorResultsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[8]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -546,7 +626,7 @@ func (x *GetMonitorResultsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorResultsRequest.ProtoReflect.Descriptor instead.
 func (*GetMonitorResultsRequest) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{8}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetMonitorResultsRequest) GetMonitorId() string {
@@ -572,7 +652,7 @@ type GetMonitorResultsResponse struct {
 
 func (x *GetMonitorResultsResponse) Reset() {
 	*x = GetMonitorResultsResponse{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[9]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +664,7 @@ func (x *GetMonitorResultsResponse) String() string {
 func (*GetMonitorResultsResponse) ProtoMessage() {}
 
 func (x *GetMonitorResultsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[9]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +677,7 @@ func (x *GetMonitorResultsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorResultsResponse.ProtoReflect.Descriptor instead.
 func (*GetMonitorResultsResponse) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{9}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetMonitorResultsResponse) GetResults() []*MonitorResult {
@@ -618,7 +698,7 @@ type GetMonitorMetricsRequest struct {
 
 func (x *GetMonitorMetricsRequest) Reset() {
 	*x = GetMonitorMetricsRequest{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[10]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -630,7 +710,7 @@ func (x *GetMonitorMetricsRequest) String() string {
 func (*GetMonitorMetricsRequest) ProtoMessage() {}
 
 func (x *GetMonitorMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[10]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -643,7 +723,7 @@ func (x *GetMonitorMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorMetricsRequest.ProtoReflect.Descriptor instead.
 func (*GetMonitorMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{10}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetMonitorMetricsRequest) GetMonitorId() string {
@@ -676,7 +756,7 @@ type GetMonitorMetricsResponse struct {
 
 func (x *GetMonitorMetricsResponse) Reset() {
 	*x = GetMonitorMetricsResponse{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[11]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -688,7 +768,7 @@ func (x *GetMonitorMetricsResponse) String() string {
 func (*GetMonitorMetricsResponse) ProtoMessage() {}
 
 func (x *GetMonitorMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[11]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +781,7 @@ func (x *GetMonitorMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorMetricsResponse.ProtoReflect.Descriptor instead.
 func (*GetMonitorMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{11}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetMonitorMetricsResponse) GetMetrics() []*MonitorMetrics {
@@ -733,7 +813,7 @@ type Monitor struct {
 
 func (x *Monitor) Reset() {
 	*x = Monitor{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[12]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -745,7 +825,7 @@ func (x *Monitor) String() string {
 func (*Monitor) ProtoMessage() {}
 
 func (x *Monitor) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[12]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -758,7 +838,7 @@ func (x *Monitor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Monitor.ProtoReflect.Descriptor instead.
 func (*Monitor) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{12}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Monitor) GetId() string {
@@ -881,7 +961,7 @@ type MonitorResult struct {
 
 func (x *MonitorResult) Reset() {
 	*x = MonitorResult{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[13]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +973,7 @@ func (x *MonitorResult) String() string {
 func (*MonitorResult) ProtoMessage() {}
 
 func (x *MonitorResult) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[13]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +986,7 @@ func (x *MonitorResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MonitorResult.ProtoReflect.Descriptor instead.
 func (*MonitorResult) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{13}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *MonitorResult) GetRunId() string {
@@ -1027,7 +1107,7 @@ type MonitorMetrics struct {
 
 func (x *MonitorMetrics) Reset() {
 	*x = MonitorMetrics{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[14]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1119,7 @@ func (x *MonitorMetrics) String() string {
 func (*MonitorMetrics) ProtoMessage() {}
 
 func (x *MonitorMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[14]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1052,7 +1132,7 @@ func (x *MonitorMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MonitorMetrics.ProtoReflect.Descriptor instead.
 func (*MonitorMetrics) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{14}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MonitorMetrics) GetMonitorId() string {
@@ -1149,7 +1229,7 @@ type GetMonitorUptimeRequest struct {
 
 func (x *GetMonitorUptimeRequest) Reset() {
 	*x = GetMonitorUptimeRequest{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[15]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1161,7 +1241,7 @@ func (x *GetMonitorUptimeRequest) String() string {
 func (*GetMonitorUptimeRequest) ProtoMessage() {}
 
 func (x *GetMonitorUptimeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[15]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +1254,7 @@ func (x *GetMonitorUptimeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorUptimeRequest.ProtoReflect.Descriptor instead.
 func (*GetMonitorUptimeRequest) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{15}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetMonitorUptimeRequest) GetMonitorId() string {
@@ -1203,7 +1283,7 @@ type GetMonitorUptimeResponse struct {
 
 func (x *GetMonitorUptimeResponse) Reset() {
 	*x = GetMonitorUptimeResponse{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[16]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1215,7 +1295,7 @@ func (x *GetMonitorUptimeResponse) String() string {
 func (*GetMonitorUptimeResponse) ProtoMessage() {}
 
 func (x *GetMonitorUptimeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[16]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1228,7 +1308,7 @@ func (x *GetMonitorUptimeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorUptimeResponse.ProtoReflect.Descriptor instead.
 func (*GetMonitorUptimeResponse) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{16}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetMonitorUptimeResponse) GetTotalChecks() int64 {
@@ -1269,7 +1349,7 @@ type GetMonitorUptimeTimelineRequest struct {
 
 func (x *GetMonitorUptimeTimelineRequest) Reset() {
 	*x = GetMonitorUptimeTimelineRequest{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[17]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1281,7 +1361,7 @@ func (x *GetMonitorUptimeTimelineRequest) String() string {
 func (*GetMonitorUptimeTimelineRequest) ProtoMessage() {}
 
 func (x *GetMonitorUptimeTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[17]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1294,7 +1374,7 @@ func (x *GetMonitorUptimeTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorUptimeTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetMonitorUptimeTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{17}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetMonitorUptimeTimelineRequest) GetMonitorId() string {
@@ -1323,7 +1403,7 @@ type UptimeTimelinePoint struct {
 
 func (x *UptimeTimelinePoint) Reset() {
 	*x = UptimeTimelinePoint{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[18]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1335,7 +1415,7 @@ func (x *UptimeTimelinePoint) String() string {
 func (*UptimeTimelinePoint) ProtoMessage() {}
 
 func (x *UptimeTimelinePoint) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[18]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1348,7 +1428,7 @@ func (x *UptimeTimelinePoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UptimeTimelinePoint.ProtoReflect.Descriptor instead.
 func (*UptimeTimelinePoint) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{18}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UptimeTimelinePoint) GetBucket() *timestamppb.Timestamp {
@@ -1388,7 +1468,7 @@ type GetMonitorUptimeTimelineResponse struct {
 
 func (x *GetMonitorUptimeTimelineResponse) Reset() {
 	*x = GetMonitorUptimeTimelineResponse{}
-	mi := &file_openseer_v1_monitors_proto_msgTypes[19]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1400,7 +1480,7 @@ func (x *GetMonitorUptimeTimelineResponse) String() string {
 func (*GetMonitorUptimeTimelineResponse) ProtoMessage() {}
 
 func (x *GetMonitorUptimeTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_monitors_proto_msgTypes[19]
+	mi := &file_openseer_v1_monitors_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1413,7 +1493,7 @@ func (x *GetMonitorUptimeTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMonitorUptimeTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetMonitorUptimeTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{19}
+	return file_openseer_v1_monitors_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetMonitorUptimeTimelineResponse) GetData() []*UptimeTimelinePoint {
@@ -1476,7 +1556,10 @@ const file_openseer_v1_monitors_proto_rawDesc = "" +
 	"\n" +
 	"\b_enabled\"G\n" +
 	"\x15UpdateMonitorResponse\x12.\n" +
-	"\amonitor\x18\x01 \x01(\v2\x14.openseer.v1.MonitorR\amonitor\"\x15\n" +
+	"\amonitor\x18\x01 \x01(\v2\x14.openseer.v1.MonitorR\amonitor\"&\n" +
+	"\x14DeleteMonitorRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
+	"\x15DeleteMonitorResponse\"\x15\n" +
 	"\x13ListMonitorsRequest\"H\n" +
 	"\x14ListMonitorsResponse\x120\n" +
 	"\bmonitors\x18\x01 \x03(\v2\x14.openseer.v1.MonitorR\bmonitors\"O\n" +
@@ -1587,12 +1670,13 @@ const file_openseer_v1_monitors_proto_rawDesc = "" +
 	"\x11successful_checks\x18\x03 \x01(\x03R\x10successfulChecks\x12+\n" +
 	"\x11uptime_percentage\x18\x04 \x01(\x01R\x10uptimePercentage\"X\n" +
 	" GetMonitorUptimeTimelineResponse\x124\n" +
-	"\x04data\x18\x01 \x03(\v2 .openseer.v1.UptimeTimelinePointR\x04data2\x97\x06\n" +
+	"\x04data\x18\x01 \x03(\v2 .openseer.v1.UptimeTimelinePointR\x04data2\xf1\x06\n" +
 	"\x0fMonitorsService\x12X\n" +
 	"\rCreateMonitor\x12!.openseer.v1.CreateMonitorRequest\x1a\".openseer.v1.CreateMonitorResponse\"\x00\x12O\n" +
 	"\n" +
 	"GetMonitor\x12\x1e.openseer.v1.GetMonitorRequest\x1a\x1f.openseer.v1.GetMonitorResponse\"\x00\x12X\n" +
-	"\rUpdateMonitor\x12!.openseer.v1.UpdateMonitorRequest\x1a\".openseer.v1.UpdateMonitorResponse\"\x00\x12U\n" +
+	"\rUpdateMonitor\x12!.openseer.v1.UpdateMonitorRequest\x1a\".openseer.v1.UpdateMonitorResponse\"\x00\x12X\n" +
+	"\rDeleteMonitor\x12!.openseer.v1.DeleteMonitorRequest\x1a\".openseer.v1.DeleteMonitorResponse\"\x00\x12U\n" +
 	"\fListMonitors\x12 .openseer.v1.ListMonitorsRequest\x1a!.openseer.v1.ListMonitorsResponse\"\x00\x12d\n" +
 	"\x11GetMonitorResults\x12%.openseer.v1.GetMonitorResultsRequest\x1a&.openseer.v1.GetMonitorResultsResponse\"\x00\x12d\n" +
 	"\x11GetMonitorMetrics\x12%.openseer.v1.GetMonitorMetricsRequest\x1a&.openseer.v1.GetMonitorMetricsResponse\"\x00\x12a\n" +
@@ -1611,7 +1695,7 @@ func file_openseer_v1_monitors_proto_rawDescGZIP() []byte {
 	return file_openseer_v1_monitors_proto_rawDescData
 }
 
-var file_openseer_v1_monitors_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_openseer_v1_monitors_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_openseer_v1_monitors_proto_goTypes = []any{
 	(*CreateMonitorRequest)(nil),             // 0: openseer.v1.CreateMonitorRequest
 	(*CreateMonitorResponse)(nil),            // 1: openseer.v1.CreateMonitorResponse
@@ -1619,64 +1703,68 @@ var file_openseer_v1_monitors_proto_goTypes = []any{
 	(*GetMonitorResponse)(nil),               // 3: openseer.v1.GetMonitorResponse
 	(*UpdateMonitorRequest)(nil),             // 4: openseer.v1.UpdateMonitorRequest
 	(*UpdateMonitorResponse)(nil),            // 5: openseer.v1.UpdateMonitorResponse
-	(*ListMonitorsRequest)(nil),              // 6: openseer.v1.ListMonitorsRequest
-	(*ListMonitorsResponse)(nil),             // 7: openseer.v1.ListMonitorsResponse
-	(*GetMonitorResultsRequest)(nil),         // 8: openseer.v1.GetMonitorResultsRequest
-	(*GetMonitorResultsResponse)(nil),        // 9: openseer.v1.GetMonitorResultsResponse
-	(*GetMonitorMetricsRequest)(nil),         // 10: openseer.v1.GetMonitorMetricsRequest
-	(*GetMonitorMetricsResponse)(nil),        // 11: openseer.v1.GetMonitorMetricsResponse
-	(*Monitor)(nil),                          // 12: openseer.v1.Monitor
-	(*MonitorResult)(nil),                    // 13: openseer.v1.MonitorResult
-	(*MonitorMetrics)(nil),                   // 14: openseer.v1.MonitorMetrics
-	(*GetMonitorUptimeRequest)(nil),          // 15: openseer.v1.GetMonitorUptimeRequest
-	(*GetMonitorUptimeResponse)(nil),         // 16: openseer.v1.GetMonitorUptimeResponse
-	(*GetMonitorUptimeTimelineRequest)(nil),  // 17: openseer.v1.GetMonitorUptimeTimelineRequest
-	(*UptimeTimelinePoint)(nil),              // 18: openseer.v1.UptimeTimelinePoint
-	(*GetMonitorUptimeTimelineResponse)(nil), // 19: openseer.v1.GetMonitorUptimeTimelineResponse
-	(*structpb.Struct)(nil),                  // 20: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),            // 21: google.protobuf.Timestamp
+	(*DeleteMonitorRequest)(nil),             // 6: openseer.v1.DeleteMonitorRequest
+	(*DeleteMonitorResponse)(nil),            // 7: openseer.v1.DeleteMonitorResponse
+	(*ListMonitorsRequest)(nil),              // 8: openseer.v1.ListMonitorsRequest
+	(*ListMonitorsResponse)(nil),             // 9: openseer.v1.ListMonitorsResponse
+	(*GetMonitorResultsRequest)(nil),         // 10: openseer.v1.GetMonitorResultsRequest
+	(*GetMonitorResultsResponse)(nil),        // 11: openseer.v1.GetMonitorResultsResponse
+	(*GetMonitorMetricsRequest)(nil),         // 12: openseer.v1.GetMonitorMetricsRequest
+	(*GetMonitorMetricsResponse)(nil),        // 13: openseer.v1.GetMonitorMetricsResponse
+	(*Monitor)(nil),                          // 14: openseer.v1.Monitor
+	(*MonitorResult)(nil),                    // 15: openseer.v1.MonitorResult
+	(*MonitorMetrics)(nil),                   // 16: openseer.v1.MonitorMetrics
+	(*GetMonitorUptimeRequest)(nil),          // 17: openseer.v1.GetMonitorUptimeRequest
+	(*GetMonitorUptimeResponse)(nil),         // 18: openseer.v1.GetMonitorUptimeResponse
+	(*GetMonitorUptimeTimelineRequest)(nil),  // 19: openseer.v1.GetMonitorUptimeTimelineRequest
+	(*UptimeTimelinePoint)(nil),              // 20: openseer.v1.UptimeTimelinePoint
+	(*GetMonitorUptimeTimelineResponse)(nil), // 21: openseer.v1.GetMonitorUptimeTimelineResponse
+	(*structpb.Struct)(nil),                  // 22: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),            // 23: google.protobuf.Timestamp
 }
 var file_openseer_v1_monitors_proto_depIdxs = []int32{
-	20, // 0: openseer.v1.CreateMonitorRequest.headers:type_name -> google.protobuf.Struct
-	20, // 1: openseer.v1.CreateMonitorRequest.assertions:type_name -> google.protobuf.Struct
-	12, // 2: openseer.v1.CreateMonitorResponse.monitor:type_name -> openseer.v1.Monitor
-	12, // 3: openseer.v1.GetMonitorResponse.monitor:type_name -> openseer.v1.Monitor
-	20, // 4: openseer.v1.UpdateMonitorRequest.headers:type_name -> google.protobuf.Struct
-	20, // 5: openseer.v1.UpdateMonitorRequest.assertions:type_name -> google.protobuf.Struct
-	12, // 6: openseer.v1.UpdateMonitorResponse.monitor:type_name -> openseer.v1.Monitor
-	12, // 7: openseer.v1.ListMonitorsResponse.monitors:type_name -> openseer.v1.Monitor
-	13, // 8: openseer.v1.GetMonitorResultsResponse.results:type_name -> openseer.v1.MonitorResult
-	21, // 9: openseer.v1.GetMonitorMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
-	21, // 10: openseer.v1.GetMonitorMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
-	14, // 11: openseer.v1.GetMonitorMetricsResponse.metrics:type_name -> openseer.v1.MonitorMetrics
-	20, // 12: openseer.v1.Monitor.headers:type_name -> google.protobuf.Struct
-	20, // 13: openseer.v1.Monitor.assertions:type_name -> google.protobuf.Struct
-	21, // 14: openseer.v1.Monitor.created_at:type_name -> google.protobuf.Timestamp
-	21, // 15: openseer.v1.Monitor.updated_at:type_name -> google.protobuf.Timestamp
-	21, // 16: openseer.v1.Monitor.last_scheduled_at:type_name -> google.protobuf.Timestamp
-	21, // 17: openseer.v1.Monitor.next_due_at:type_name -> google.protobuf.Timestamp
-	21, // 18: openseer.v1.MonitorResult.event_at:type_name -> google.protobuf.Timestamp
-	21, // 19: openseer.v1.MonitorMetrics.bucket:type_name -> google.protobuf.Timestamp
-	21, // 20: openseer.v1.UptimeTimelinePoint.bucket:type_name -> google.protobuf.Timestamp
-	18, // 21: openseer.v1.GetMonitorUptimeTimelineResponse.data:type_name -> openseer.v1.UptimeTimelinePoint
+	22, // 0: openseer.v1.CreateMonitorRequest.headers:type_name -> google.protobuf.Struct
+	22, // 1: openseer.v1.CreateMonitorRequest.assertions:type_name -> google.protobuf.Struct
+	14, // 2: openseer.v1.CreateMonitorResponse.monitor:type_name -> openseer.v1.Monitor
+	14, // 3: openseer.v1.GetMonitorResponse.monitor:type_name -> openseer.v1.Monitor
+	22, // 4: openseer.v1.UpdateMonitorRequest.headers:type_name -> google.protobuf.Struct
+	22, // 5: openseer.v1.UpdateMonitorRequest.assertions:type_name -> google.protobuf.Struct
+	14, // 6: openseer.v1.UpdateMonitorResponse.monitor:type_name -> openseer.v1.Monitor
+	14, // 7: openseer.v1.ListMonitorsResponse.monitors:type_name -> openseer.v1.Monitor
+	15, // 8: openseer.v1.GetMonitorResultsResponse.results:type_name -> openseer.v1.MonitorResult
+	23, // 9: openseer.v1.GetMonitorMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
+	23, // 10: openseer.v1.GetMonitorMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
+	16, // 11: openseer.v1.GetMonitorMetricsResponse.metrics:type_name -> openseer.v1.MonitorMetrics
+	22, // 12: openseer.v1.Monitor.headers:type_name -> google.protobuf.Struct
+	22, // 13: openseer.v1.Monitor.assertions:type_name -> google.protobuf.Struct
+	23, // 14: openseer.v1.Monitor.created_at:type_name -> google.protobuf.Timestamp
+	23, // 15: openseer.v1.Monitor.updated_at:type_name -> google.protobuf.Timestamp
+	23, // 16: openseer.v1.Monitor.last_scheduled_at:type_name -> google.protobuf.Timestamp
+	23, // 17: openseer.v1.Monitor.next_due_at:type_name -> google.protobuf.Timestamp
+	23, // 18: openseer.v1.MonitorResult.event_at:type_name -> google.protobuf.Timestamp
+	23, // 19: openseer.v1.MonitorMetrics.bucket:type_name -> google.protobuf.Timestamp
+	23, // 20: openseer.v1.UptimeTimelinePoint.bucket:type_name -> google.protobuf.Timestamp
+	20, // 21: openseer.v1.GetMonitorUptimeTimelineResponse.data:type_name -> openseer.v1.UptimeTimelinePoint
 	0,  // 22: openseer.v1.MonitorsService.CreateMonitor:input_type -> openseer.v1.CreateMonitorRequest
 	2,  // 23: openseer.v1.MonitorsService.GetMonitor:input_type -> openseer.v1.GetMonitorRequest
 	4,  // 24: openseer.v1.MonitorsService.UpdateMonitor:input_type -> openseer.v1.UpdateMonitorRequest
-	6,  // 25: openseer.v1.MonitorsService.ListMonitors:input_type -> openseer.v1.ListMonitorsRequest
-	8,  // 26: openseer.v1.MonitorsService.GetMonitorResults:input_type -> openseer.v1.GetMonitorResultsRequest
-	10, // 27: openseer.v1.MonitorsService.GetMonitorMetrics:input_type -> openseer.v1.GetMonitorMetricsRequest
-	15, // 28: openseer.v1.MonitorsService.GetMonitorUptime:input_type -> openseer.v1.GetMonitorUptimeRequest
-	17, // 29: openseer.v1.MonitorsService.GetMonitorUptimeTimeline:input_type -> openseer.v1.GetMonitorUptimeTimelineRequest
-	1,  // 30: openseer.v1.MonitorsService.CreateMonitor:output_type -> openseer.v1.CreateMonitorResponse
-	3,  // 31: openseer.v1.MonitorsService.GetMonitor:output_type -> openseer.v1.GetMonitorResponse
-	5,  // 32: openseer.v1.MonitorsService.UpdateMonitor:output_type -> openseer.v1.UpdateMonitorResponse
-	7,  // 33: openseer.v1.MonitorsService.ListMonitors:output_type -> openseer.v1.ListMonitorsResponse
-	9,  // 34: openseer.v1.MonitorsService.GetMonitorResults:output_type -> openseer.v1.GetMonitorResultsResponse
-	11, // 35: openseer.v1.MonitorsService.GetMonitorMetrics:output_type -> openseer.v1.GetMonitorMetricsResponse
-	16, // 36: openseer.v1.MonitorsService.GetMonitorUptime:output_type -> openseer.v1.GetMonitorUptimeResponse
-	19, // 37: openseer.v1.MonitorsService.GetMonitorUptimeTimeline:output_type -> openseer.v1.GetMonitorUptimeTimelineResponse
-	30, // [30:38] is the sub-list for method output_type
-	22, // [22:30] is the sub-list for method input_type
+	6,  // 25: openseer.v1.MonitorsService.DeleteMonitor:input_type -> openseer.v1.DeleteMonitorRequest
+	8,  // 26: openseer.v1.MonitorsService.ListMonitors:input_type -> openseer.v1.ListMonitorsRequest
+	10, // 27: openseer.v1.MonitorsService.GetMonitorResults:input_type -> openseer.v1.GetMonitorResultsRequest
+	12, // 28: openseer.v1.MonitorsService.GetMonitorMetrics:input_type -> openseer.v1.GetMonitorMetricsRequest
+	17, // 29: openseer.v1.MonitorsService.GetMonitorUptime:input_type -> openseer.v1.GetMonitorUptimeRequest
+	19, // 30: openseer.v1.MonitorsService.GetMonitorUptimeTimeline:input_type -> openseer.v1.GetMonitorUptimeTimelineRequest
+	1,  // 31: openseer.v1.MonitorsService.CreateMonitor:output_type -> openseer.v1.CreateMonitorResponse
+	3,  // 32: openseer.v1.MonitorsService.GetMonitor:output_type -> openseer.v1.GetMonitorResponse
+	5,  // 33: openseer.v1.MonitorsService.UpdateMonitor:output_type -> openseer.v1.UpdateMonitorResponse
+	7,  // 34: openseer.v1.MonitorsService.DeleteMonitor:output_type -> openseer.v1.DeleteMonitorResponse
+	9,  // 35: openseer.v1.MonitorsService.ListMonitors:output_type -> openseer.v1.ListMonitorsResponse
+	11, // 36: openseer.v1.MonitorsService.GetMonitorResults:output_type -> openseer.v1.GetMonitorResultsResponse
+	13, // 37: openseer.v1.MonitorsService.GetMonitorMetrics:output_type -> openseer.v1.GetMonitorMetricsResponse
+	18, // 38: openseer.v1.MonitorsService.GetMonitorUptime:output_type -> openseer.v1.GetMonitorUptimeResponse
+	21, // 39: openseer.v1.MonitorsService.GetMonitorUptimeTimeline:output_type -> openseer.v1.GetMonitorUptimeTimelineResponse
+	31, // [31:40] is the sub-list for method output_type
+	22, // [22:31] is the sub-list for method input_type
 	22, // [22:22] is the sub-list for extension type_name
 	22, // [22:22] is the sub-list for extension extendee
 	0,  // [0:22] is the sub-list for field type_name
@@ -1689,15 +1777,15 @@ func file_openseer_v1_monitors_proto_init() {
 	}
 	file_openseer_v1_monitors_proto_msgTypes[0].OneofWrappers = []any{}
 	file_openseer_v1_monitors_proto_msgTypes[4].OneofWrappers = []any{}
-	file_openseer_v1_monitors_proto_msgTypes[12].OneofWrappers = []any{}
-	file_openseer_v1_monitors_proto_msgTypes[13].OneofWrappers = []any{}
+	file_openseer_v1_monitors_proto_msgTypes[14].OneofWrappers = []any{}
+	file_openseer_v1_monitors_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_openseer_v1_monitors_proto_rawDesc), len(file_openseer_v1_monitors_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
