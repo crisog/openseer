@@ -3,7 +3,7 @@
 import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { Monitor, Plus, RefreshCw } from 'lucide-react';
-import { useQuery } from '@connectrpc/connect-query';
+import { useQuery, useMutation } from '@connectrpc/connect-query';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import type { Monitor as PbMonitor } from '@/lib/gen/openseer/v1/monitors_pb';
 export function MonitorsList(): React.JSX.Element {
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deletingMonitors, setDeletingMonitors] = useState<Set<string>>(new Set());
   const { refreshInterval, setRefreshInterval, triggerRefresh, isRefreshing } = useRefresh();
 
   const listMonitorsQuery = useQuery(
@@ -27,6 +28,8 @@ export function MonitorsList(): React.JSX.Element {
     { enabled: true }
   );
 
+  const deleteMonitorMutation = useMutation(MonitorsService.method.deleteMonitor);
+
   const monitors = (listMonitorsQuery.data?.monitors ?? []) as PbMonitor[];
   const isLoading = listMonitorsQuery.isPending;
 
@@ -34,6 +37,22 @@ export function MonitorsList(): React.JSX.Element {
     triggerRefresh();
     await listMonitorsQuery.refetch();
   }, [listMonitorsQuery, triggerRefresh]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    setDeletingMonitors(prev => new Set(prev).add(id));
+    try {
+      await deleteMonitorMutation.mutateAsync({ id });
+      await listMonitorsQuery.refetch();
+    } catch (error) {
+      console.error('Failed to delete monitor:', error);
+    } finally {
+      setDeletingMonitors(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    }
+  }, [deleteMonitorMutation, listMonitorsQuery]);
 
   useEffect(() => {
     if (refreshInterval === null) return;
@@ -126,9 +145,8 @@ export function MonitorsList(): React.JSX.Element {
               onTogglePause={(id) => {
                 console.log('Toggle pause:', id);
               }}
-              onDelete={(id) => {
-                console.log('Delete:', id);
-              }}
+              onDelete={handleDelete}
+              isDeleting={deletingMonitors.has(monitor.id)}
               onConfigure={(id) => {
                 console.log('Configure:', id);
               }}

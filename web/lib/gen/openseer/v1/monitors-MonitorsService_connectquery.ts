@@ -20,6 +20,11 @@ export const getMonitor = MonitorsService.method.getMonitor;
 export const updateMonitor = MonitorsService.method.updateMonitor;
 
 /**
+ * @generated from rpc openseer.v1.MonitorsService.DeleteMonitor
+ */
+export const deleteMonitor = MonitorsService.method.deleteMonitor;
+
+/**
  * @generated from rpc openseer.v1.MonitorsService.ListMonitors
  */
 export const listMonitors = MonitorsService.method.listMonitors;

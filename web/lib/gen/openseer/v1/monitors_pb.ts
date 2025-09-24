@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file openseer/v1/monitors.proto.
  */
 export const file_openseer_v1_monitors: GenFile = /*@__PURE__*/
-  fileDesc("ChpvcGVuc2Vlci92MS9tb25pdG9ycy5wcm90bxILb3BlbnNlZXIudjEigAIKFENyZWF0ZU1vbml0b3JSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSCwoDdXJsGAMgASgJEhMKC2ludGVydmFsX21zGAQgASgFEhIKCnRpbWVvdXRfbXMYBSABKAUSDwoHcmVnaW9ucxgGIAMoCRIOCgZtZXRob2QYByABKAkSKAoHaGVhZGVycxgIIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSKwoKYXNzZXJ0aW9ucxgJIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSFAoHZW5hYmxlZBgKIAEoCEgAiAEBQgoKCF9lbmFibGVkIj4KFUNyZWF0ZU1vbml0b3JSZXNwb25zZRIlCgdtb25pdG9yGAEgASgLMhQub3BlbnNlZXIudjEuTW9uaXRvciIfChFHZXRNb25pdG9yUmVxdWVzdBIKCgJpZBgBIAEoCSI7ChJHZXRNb25pdG9yUmVzcG9uc2USJQoHbW9uaXRvchgBIAEoCzIULm9wZW5zZWVyLnYxLk1vbml0b3Ii1AIKFFVwZGF0ZU1vbml0b3JSZXF1ZXN0EgoKAmlkGAEgASgJEhEKBG5hbWUYAiABKAlIAIgBARIQCgN1cmwYAyABKAlIAYgBARIYCgtpbnRlcnZhbF9tcxgEIAEoBUgCiAEBEhcKCnRpbWVvdXRfbXMYBSABKAVIA4gBARIPCgdyZWdpb25zGAYgAygJEhMKBm1ldGhvZBgHIAEoCUgEiAEBEigKB2hlYWRlcnMYCCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EisKCmFzc2VydGlvbnMYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhQKB2VuYWJsZWQYCiABKAhIBYgBAUIHCgVfbmFtZUIGCgRfdXJsQg4KDF9pbnRlcnZhbF9tc0INCgtfdGltZW91dF9tc0IJCgdfbWV0aG9kQgoKCF9lbmFibGVkIj4KFVVwZGF0ZU1vbml0b3JSZXNwb25zZRIlCgdtb25pdG9yGAEgASgLMhQub3BlbnNlZXIudjEuTW9uaXRvciIVChNMaXN0TW9uaXRvcnNSZXF1ZXN0Ij4KFExpc3RNb25pdG9yc1Jlc3BvbnNlEiYKCG1vbml0b3JzGAEgAygLMhQub3BlbnNlZXIudjEuTW9uaXRvciI9ChhHZXRNb25pdG9yUmVzdWx0c1JlcXVlc3QSEgoKbW9uaXRvcl9pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJIChlHZXRNb25pdG9yUmVzdWx0c1Jlc3BvbnNlEisKB3Jlc3VsdHMYASADKAsyGi5vcGVuc2Vlci52MS5Nb25pdG9yUmVzdWx0IowBChhHZXRNb25pdG9yTWV0cmljc1JlcXVlc3QSEgoKbW9uaXRvcl9pZBgBIAEoCRIuCgpzdGFydF90aW1lGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghlbmRfdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiSQoZR2V0TW9uaXRvck1ldHJpY3NSZXNwb25zZRIsCgdtZXRyaWNzGAEgAygLMhsub3BlbnNlZXIudjEuTW9uaXRvck1ldHJpY3Mi2gMKB01vbml0b3ISCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRILCgN1cmwYAyABKAkSEwoLaW50ZXJ2YWxfbXMYBCABKAUSEgoKdGltZW91dF9tcxgFIAEoBRIPCgdyZWdpb25zGAYgAygJEg4KBm1ldGhvZBgHIAEoCRIoCgdoZWFkZXJzGAggASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIrCgphc3NlcnRpb25zGAkgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIPCgdlbmFibGVkGAogASgIEi4KCmNyZWF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjoKEWxhc3Rfc2NoZWR1bGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjQKC25leHRfZHVlX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBQhQKEl9sYXN0X3NjaGVkdWxlZF9hdEIOCgxfbmV4dF9kdWVfYXQi1QMKDU1vbml0b3JSZXN1bHQSDgoGcnVuX2lkGAEgASgJEhIKCm1vbml0b3JfaWQYAiABKAkSDgoGcmVnaW9uGAMgASgJEiwKCGV2ZW50X2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzdGF0dXMYBSABKAkSFgoJaHR0cF9jb2RlGAYgASgFSACIAQESEwoGZG5zX21zGAcgASgFSAGIAQESFwoKY29ubmVjdF9tcxgIIAEoBUgCiAEBEhMKBnRsc19tcxgJIAEoBUgDiAEBEhQKB3R0ZmJfbXMYCiABKAVIBIgBARIYCgtkb3dubG9hZF9tcxgLIAEoBUgFiAEBEhUKCHRvdGFsX21zGAwgASgFSAaIAQESFwoKc2l6ZV9ieXRlcxgNIAEoA0gHiAEBEhoKDWVycm9yX21lc3NhZ2UYDiABKAlICIgBAUIMCgpfaHR0cF9jb2RlQgkKB19kbnNfbXNCDQoLX2Nvbm5lY3RfbXNCCQoHX3Rsc19tc0IKCghfdHRmYl9tc0IOCgxfZG93bmxvYWRfbXNCCwoJX3RvdGFsX21zQg0KC19zaXplX2J5dGVzQhAKDl9lcnJvcl9tZXNzYWdlIvgBCg5Nb25pdG9yTWV0cmljcxISCgptb25pdG9yX2lkGAEgASgJEg4KBnJlZ2lvbhgCIAEoCRIqCgZidWNrZXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNvdW50GAQgASgDEhMKC2Vycm9yX2NvdW50GAUgASgDEhIKCmVycm9yX3JhdGUYBiABKAESDgoGcDUwX21zGAcgASgBEg4KBnA5NV9tcxgIIAEoARIOCgZwOTlfbXMYCSABKAESDgoGbWluX21zGAogASgBEg4KBm1heF9tcxgLIAEoARIOCgZhdmdfbXMYDCABKAEiQQoXR2V0TW9uaXRvclVwdGltZVJlcXVlc3QSEgoKbW9uaXRvcl9pZBgBIAEoCRISCgp0aW1lX3JhbmdlGAIgASgJIn0KGEdldE1vbml0b3JVcHRpbWVSZXNwb25zZRIUCgx0b3RhbF9jaGVja3MYASABKAMSGQoRc3VjY2Vzc2Z1bF9jaGVja3MYAiABKAMSFQoNZmFpbGVkX2NoZWNrcxgDIAEoAxIZChF1cHRpbWVfcGVyY2VudGFnZRgEIAEoASJJCh9HZXRNb25pdG9yVXB0aW1lVGltZWxpbmVSZXF1ZXN0EhIKCm1vbml0b3JfaWQYASABKAkSEgoKdGltZV9yYW5nZRgCIAEoCSKNAQoTVXB0aW1lVGltZWxpbmVQb2ludBIqCgZidWNrZXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHRvdGFsX2NoZWNrcxgCIAEoAxIZChFzdWNjZXNzZnVsX2NoZWNrcxgDIAEoAxIZChF1cHRpbWVfcGVyY2VudGFnZRgEIAEoASJSCiBHZXRNb25pdG9yVXB0aW1lVGltZWxpbmVSZXNwb25zZRIuCgRkYXRhGAEgAygLMiAub3BlbnNlZXIudjEuVXB0aW1lVGltZWxpbmVQb2ludDKXBgoPTW9uaXRvcnNTZXJ2aWNlElgKDUNyZWF0ZU1vbml0b3ISIS5vcGVuc2Vlci52MS5DcmVhdGVNb25pdG9yUmVxdWVzdBoiLm9wZW5zZWVyLnYxLkNyZWF0ZU1vbml0b3JSZXNwb25zZSIAEk8KCkdldE1vbml0b3ISHi5vcGVuc2Vlci52MS5HZXRNb25pdG9yUmVxdWVzdBofLm9wZW5zZWVyLnYxLkdldE1vbml0b3JSZXNwb25zZSIAElgKDVVwZGF0ZU1vbml0b3ISIS5vcGVuc2Vlci52MS5VcGRhdGVNb25pdG9yUmVxdWVzdBoiLm9wZW5zZWVyLnYxLlVwZGF0ZU1vbml0b3JSZXNwb25zZSIAElUKDExpc3RNb25pdG9ycxIgLm9wZW5zZWVyLnYxLkxpc3RNb25pdG9yc1JlcXVlc3QaIS5vcGVuc2Vlci52MS5MaXN0TW9uaXRvcnNSZXNwb25zZSIAEmQKEUdldE1vbml0b3JSZXN1bHRzEiUub3BlbnNlZXIudjEuR2V0TW9uaXRvclJlc3VsdHNSZXF1ZXN0GiYub3BlbnNlZXIudjEuR2V0TW9uaXRvclJlc3VsdHNSZXNwb25zZSIAEmQKEUdldE1vbml0b3JNZXRyaWNzEiUub3BlbnNlZXIudjEuR2V0TW9uaXRvck1ldHJpY3NSZXF1ZXN0GiYub3BlbnNlZXIudjEuR2V0TW9uaXRvck1ldHJpY3NSZXNwb25zZSIAEmEKEEdldE1vbml0b3JVcHRpbWUSJC5vcGVuc2Vlci52MS5HZXRNb25pdG9yVXB0aW1lUmVxdWVzdBolLm9wZW5zZWVyLnYxLkdldE1vbml0b3JVcHRpbWVSZXNwb25zZSIAEnkKGEdldE1vbml0b3JVcHRpbWVUaW1lbGluZRIsLm9wZW5zZWVyLnYxLkdldE1vbml0b3JVcHRpbWVUaW1lbGluZVJlcXVlc3QaLS5vcGVuc2Vlci52MS5HZXRNb25pdG9yVXB0aW1lVGltZWxpbmVSZXNwb25zZSIAQjdaNWdpdGh1Yi5jb20vY3Jpc29nL29wZW5zZWVyL2dlbi9vcGVuc2Vlci92MTtvcGVuc2VlcnYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
+  fileDesc("ChpvcGVuc2Vlci92MS9tb25pdG9ycy5wcm90bxILb3BlbnNlZXIudjEigAIKFENyZWF0ZU1vbml0b3JSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSCwoDdXJsGAMgASgJEhMKC2ludGVydmFsX21zGAQgASgFEhIKCnRpbWVvdXRfbXMYBSABKAUSDwoHcmVnaW9ucxgGIAMoCRIOCgZtZXRob2QYByABKAkSKAoHaGVhZGVycxgIIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSKwoKYXNzZXJ0aW9ucxgJIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSFAoHZW5hYmxlZBgKIAEoCEgAiAEBQgoKCF9lbmFibGVkIj4KFUNyZWF0ZU1vbml0b3JSZXNwb25zZRIlCgdtb25pdG9yGAEgASgLMhQub3BlbnNlZXIudjEuTW9uaXRvciIfChFHZXRNb25pdG9yUmVxdWVzdBIKCgJpZBgBIAEoCSI7ChJHZXRNb25pdG9yUmVzcG9uc2USJQoHbW9uaXRvchgBIAEoCzIULm9wZW5zZWVyLnYxLk1vbml0b3Ii1AIKFFVwZGF0ZU1vbml0b3JSZXF1ZXN0EgoKAmlkGAEgASgJEhEKBG5hbWUYAiABKAlIAIgBARIQCgN1cmwYAyABKAlIAYgBARIYCgtpbnRlcnZhbF9tcxgEIAEoBUgCiAEBEhcKCnRpbWVvdXRfbXMYBSABKAVIA4gBARIPCgdyZWdpb25zGAYgAygJEhMKBm1ldGhvZBgHIAEoCUgEiAEBEigKB2hlYWRlcnMYCCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EisKCmFzc2VydGlvbnMYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhQKB2VuYWJsZWQYCiABKAhIBYgBAUIHCgVfbmFtZUIGCgRfdXJsQg4KDF9pbnRlcnZhbF9tc0INCgtfdGltZW91dF9tc0IJCgdfbWV0aG9kQgoKCF9lbmFibGVkIj4KFVVwZGF0ZU1vbml0b3JSZXNwb25zZRIlCgdtb25pdG9yGAEgASgLMhQub3BlbnNlZXIudjEuTW9uaXRvciIiChREZWxldGVNb25pdG9yUmVxdWVzdBIKCgJpZBgBIAEoCSIXChVEZWxldGVNb25pdG9yUmVzcG9uc2UiFQoTTGlzdE1vbml0b3JzUmVxdWVzdCI+ChRMaXN0TW9uaXRvcnNSZXNwb25zZRImCghtb25pdG9ycxgBIAMoCzIULm9wZW5zZWVyLnYxLk1vbml0b3IiPQoYR2V0TW9uaXRvclJlc3VsdHNSZXF1ZXN0EhIKCm1vbml0b3JfaWQYASABKAkSDQoFbGltaXQYAiABKAUiSAoZR2V0TW9uaXRvclJlc3VsdHNSZXNwb25zZRIrCgdyZXN1bHRzGAEgAygLMhoub3BlbnNlZXIudjEuTW9uaXRvclJlc3VsdCKMAQoYR2V0TW9uaXRvck1ldHJpY3NSZXF1ZXN0EhIKCm1vbml0b3JfaWQYASABKAkSLgoKc3RhcnRfdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkkKGUdldE1vbml0b3JNZXRyaWNzUmVzcG9uc2USLAoHbWV0cmljcxgBIAMoCzIbLm9wZW5zZWVyLnYxLk1vbml0b3JNZXRyaWNzItoDCgdNb25pdG9yEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSCwoDdXJsGAMgASgJEhMKC2ludGVydmFsX21zGAQgASgFEhIKCnRpbWVvdXRfbXMYBSABKAUSDwoHcmVnaW9ucxgGIAMoCRIOCgZtZXRob2QYByABKAkSKAoHaGVhZGVycxgIIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSKwoKYXNzZXJ0aW9ucxgJIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHZW5hYmxlZBgKIAEoCBIuCgpjcmVhdGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI6ChFsYXN0X3NjaGVkdWxlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARI0CgtuZXh0X2R1ZV9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBAUIUChJfbGFzdF9zY2hlZHVsZWRfYXRCDgoMX25leHRfZHVlX2F0ItUDCg1Nb25pdG9yUmVzdWx0Eg4KBnJ1bl9pZBgBIAEoCRISCgptb25pdG9yX2lkGAIgASgJEg4KBnJlZ2lvbhgDIAEoCRIsCghldmVudF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGc3RhdHVzGAUgASgJEhYKCWh0dHBfY29kZRgGIAEoBUgAiAEBEhMKBmRuc19tcxgHIAEoBUgBiAEBEhcKCmNvbm5lY3RfbXMYCCABKAVIAogBARITCgZ0bHNfbXMYCSABKAVIA4gBARIUCgd0dGZiX21zGAogASgFSASIAQESGAoLZG93bmxvYWRfbXMYCyABKAVIBYgBARIVCgh0b3RhbF9tcxgMIAEoBUgGiAEBEhcKCnNpemVfYnl0ZXMYDSABKANIB4gBARIaCg1lcnJvcl9tZXNzYWdlGA4gASgJSAiIAQFCDAoKX2h0dHBfY29kZUIJCgdfZG5zX21zQg0KC19jb25uZWN0X21zQgkKB190bHNfbXNCCgoIX3R0ZmJfbXNCDgoMX2Rvd25sb2FkX21zQgsKCV90b3RhbF9tc0INCgtfc2l6ZV9ieXRlc0IQCg5fZXJyb3JfbWVzc2FnZSL4AQoOTW9uaXRvck1ldHJpY3MSEgoKbW9uaXRvcl9pZBgBIAEoCRIOCgZyZWdpb24YAiABKAkSKgoGYnVja2V0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVjb3VudBgEIAEoAxITCgtlcnJvcl9jb3VudBgFIAEoAxISCgplcnJvcl9yYXRlGAYgASgBEg4KBnA1MF9tcxgHIAEoARIOCgZwOTVfbXMYCCABKAESDgoGcDk5X21zGAkgASgBEg4KBm1pbl9tcxgKIAEoARIOCgZtYXhfbXMYCyABKAESDgoGYXZnX21zGAwgASgBIkEKF0dldE1vbml0b3JVcHRpbWVSZXF1ZXN0EhIKCm1vbml0b3JfaWQYASABKAkSEgoKdGltZV9yYW5nZRgCIAEoCSJ9ChhHZXRNb25pdG9yVXB0aW1lUmVzcG9uc2USFAoMdG90YWxfY2hlY2tzGAEgASgDEhkKEXN1Y2Nlc3NmdWxfY2hlY2tzGAIgASgDEhUKDWZhaWxlZF9jaGVja3MYAyABKAMSGQoRdXB0aW1lX3BlcmNlbnRhZ2UYBCABKAEiSQofR2V0TW9uaXRvclVwdGltZVRpbWVsaW5lUmVxdWVzdBISCgptb25pdG9yX2lkGAEgASgJEhIKCnRpbWVfcmFuZ2UYAiABKAkijQEKE1VwdGltZVRpbWVsaW5lUG9pbnQSKgoGYnVja2V0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgx0b3RhbF9jaGVja3MYAiABKAMSGQoRc3VjY2Vzc2Z1bF9jaGVja3MYAyABKAMSGQoRdXB0aW1lX3BlcmNlbnRhZ2UYBCABKAEiUgogR2V0TW9uaXRvclVwdGltZVRpbWVsaW5lUmVzcG9uc2USLgoEZGF0YRgBIAMoCzIgLm9wZW5zZWVyLnYxLlVwdGltZVRpbWVsaW5lUG9pbnQy8QYKD01vbml0b3JzU2VydmljZRJYCg1DcmVhdGVNb25pdG9yEiEub3BlbnNlZXIudjEuQ3JlYXRlTW9uaXRvclJlcXVlc3QaIi5vcGVuc2Vlci52MS5DcmVhdGVNb25pdG9yUmVzcG9uc2UiABJPCgpHZXRNb25pdG9yEh4ub3BlbnNlZXIudjEuR2V0TW9uaXRvclJlcXVlc3QaHy5vcGVuc2Vlci52MS5HZXRNb25pdG9yUmVzcG9uc2UiABJYCg1VcGRhdGVNb25pdG9yEiEub3BlbnNlZXIudjEuVXBkYXRlTW9uaXRvclJlcXVlc3QaIi5vcGVuc2Vlci52MS5VcGRhdGVNb25pdG9yUmVzcG9uc2UiABJYCg1EZWxldGVNb25pdG9yEiEub3BlbnNlZXIudjEuRGVsZXRlTW9uaXRvclJlcXVlc3QaIi5vcGVuc2Vlci52MS5EZWxldGVNb25pdG9yUmVzcG9uc2UiABJVCgxMaXN0TW9uaXRvcnMSIC5vcGVuc2Vlci52MS5MaXN0TW9uaXRvcnNSZXF1ZXN0GiEub3BlbnNlZXIudjEuTGlzdE1vbml0b3JzUmVzcG9uc2UiABJkChFHZXRNb25pdG9yUmVzdWx0cxIlLm9wZW5zZWVyLnYxLkdldE1vbml0b3JSZXN1bHRzUmVxdWVzdBomLm9wZW5zZWVyLnYxLkdldE1vbml0b3JSZXN1bHRzUmVzcG9uc2UiABJkChFHZXRNb25pdG9yTWV0cmljcxIlLm9wZW5zZWVyLnYxLkdldE1vbml0b3JNZXRyaWNzUmVxdWVzdBomLm9wZW5zZWVyLnYxLkdldE1vbml0b3JNZXRyaWNzUmVzcG9uc2UiABJhChBHZXRNb25pdG9yVXB0aW1lEiQub3BlbnNlZXIudjEuR2V0TW9uaXRvclVwdGltZVJlcXVlc3QaJS5vcGVuc2Vlci52MS5HZXRNb25pdG9yVXB0aW1lUmVzcG9uc2UiABJ5ChhHZXRNb25pdG9yVXB0aW1lVGltZWxpbmUSLC5vcGVuc2Vlci52MS5HZXRNb25pdG9yVXB0aW1lVGltZWxpbmVSZXF1ZXN0Gi0ub3BlbnNlZXIudjEuR2V0TW9uaXRvclVwdGltZVRpbWVsaW5lUmVzcG9uc2UiAEI3WjVnaXRodWIuY29tL2NyaXNvZy9vcGVuc2Vlci9nZW4vb3BlbnNlZXIvdjE7b3BlbnNlZXJ2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
 
 /**
  * @generated from message openseer.v1.CreateMonitorRequest
@@ -207,6 +207,36 @@ export const UpdateMonitorResponseSchema: GenMessage<UpdateMonitorResponse> = /*
   messageDesc(file_openseer_v1_monitors, 5);
 
 /**
+ * @generated from message openseer.v1.DeleteMonitorRequest
+ */
+export type DeleteMonitorRequest = Message<"openseer.v1.DeleteMonitorRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message openseer.v1.DeleteMonitorRequest.
+ * Use `create(DeleteMonitorRequestSchema)` to create a new message.
+ */
+export const DeleteMonitorRequestSchema: GenMessage<DeleteMonitorRequest> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_monitors, 6);
+
+/**
+ * @generated from message openseer.v1.DeleteMonitorResponse
+ */
+export type DeleteMonitorResponse = Message<"openseer.v1.DeleteMonitorResponse"> & {
+};
+
+/**
+ * Describes the message openseer.v1.DeleteMonitorResponse.
+ * Use `create(DeleteMonitorResponseSchema)` to create a new message.
+ */
+export const DeleteMonitorResponseSchema: GenMessage<DeleteMonitorResponse> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_monitors, 7);
+
+/**
  * Empty for now, can add pagination later
  *
  * @generated from message openseer.v1.ListMonitorsRequest
@@ -219,7 +249,7 @@ export type ListMonitorsRequest = Message<"openseer.v1.ListMonitorsRequest"> & {
  * Use `create(ListMonitorsRequestSchema)` to create a new message.
  */
 export const ListMonitorsRequestSchema: GenMessage<ListMonitorsRequest> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 6);
+  messageDesc(file_openseer_v1_monitors, 8);
 
 /**
  * @generated from message openseer.v1.ListMonitorsResponse
@@ -236,7 +266,7 @@ export type ListMonitorsResponse = Message<"openseer.v1.ListMonitorsResponse"> &
  * Use `create(ListMonitorsResponseSchema)` to create a new message.
  */
 export const ListMonitorsResponseSchema: GenMessage<ListMonitorsResponse> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 7);
+  messageDesc(file_openseer_v1_monitors, 9);
 
 /**
  * @generated from message openseer.v1.GetMonitorResultsRequest
@@ -258,7 +288,7 @@ export type GetMonitorResultsRequest = Message<"openseer.v1.GetMonitorResultsReq
  * Use `create(GetMonitorResultsRequestSchema)` to create a new message.
  */
 export const GetMonitorResultsRequestSchema: GenMessage<GetMonitorResultsRequest> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 8);
+  messageDesc(file_openseer_v1_monitors, 10);
 
 /**
  * @generated from message openseer.v1.GetMonitorResultsResponse
@@ -275,7 +305,7 @@ export type GetMonitorResultsResponse = Message<"openseer.v1.GetMonitorResultsRe
  * Use `create(GetMonitorResultsResponseSchema)` to create a new message.
  */
 export const GetMonitorResultsResponseSchema: GenMessage<GetMonitorResultsResponse> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 9);
+  messageDesc(file_openseer_v1_monitors, 11);
 
 /**
  * @generated from message openseer.v1.GetMonitorMetricsRequest
@@ -302,7 +332,7 @@ export type GetMonitorMetricsRequest = Message<"openseer.v1.GetMonitorMetricsReq
  * Use `create(GetMonitorMetricsRequestSchema)` to create a new message.
  */
 export const GetMonitorMetricsRequestSchema: GenMessage<GetMonitorMetricsRequest> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 10);
+  messageDesc(file_openseer_v1_monitors, 12);
 
 /**
  * @generated from message openseer.v1.GetMonitorMetricsResponse
@@ -319,7 +349,7 @@ export type GetMonitorMetricsResponse = Message<"openseer.v1.GetMonitorMetricsRe
  * Use `create(GetMonitorMetricsResponseSchema)` to create a new message.
  */
 export const GetMonitorMetricsResponseSchema: GenMessage<GetMonitorMetricsResponse> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 11);
+  messageDesc(file_openseer_v1_monitors, 13);
 
 /**
  * @generated from message openseer.v1.Monitor
@@ -401,7 +431,7 @@ export type Monitor = Message<"openseer.v1.Monitor"> & {
  * Use `create(MonitorSchema)` to create a new message.
  */
 export const MonitorSchema: GenMessage<Monitor> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 12);
+  messageDesc(file_openseer_v1_monitors, 14);
 
 /**
  * @generated from message openseer.v1.MonitorResult
@@ -483,7 +513,7 @@ export type MonitorResult = Message<"openseer.v1.MonitorResult"> & {
  * Use `create(MonitorResultSchema)` to create a new message.
  */
 export const MonitorResultSchema: GenMessage<MonitorResult> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 13);
+  messageDesc(file_openseer_v1_monitors, 15);
 
 /**
  * @generated from message openseer.v1.MonitorMetrics
@@ -555,7 +585,7 @@ export type MonitorMetrics = Message<"openseer.v1.MonitorMetrics"> & {
  * Use `create(MonitorMetricsSchema)` to create a new message.
  */
 export const MonitorMetricsSchema: GenMessage<MonitorMetrics> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 14);
+  messageDesc(file_openseer_v1_monitors, 16);
 
 /**
  * @generated from message openseer.v1.GetMonitorUptimeRequest
@@ -579,7 +609,7 @@ export type GetMonitorUptimeRequest = Message<"openseer.v1.GetMonitorUptimeReque
  * Use `create(GetMonitorUptimeRequestSchema)` to create a new message.
  */
 export const GetMonitorUptimeRequestSchema: GenMessage<GetMonitorUptimeRequest> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 15);
+  messageDesc(file_openseer_v1_monitors, 17);
 
 /**
  * @generated from message openseer.v1.GetMonitorUptimeResponse
@@ -611,7 +641,7 @@ export type GetMonitorUptimeResponse = Message<"openseer.v1.GetMonitorUptimeResp
  * Use `create(GetMonitorUptimeResponseSchema)` to create a new message.
  */
 export const GetMonitorUptimeResponseSchema: GenMessage<GetMonitorUptimeResponse> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 16);
+  messageDesc(file_openseer_v1_monitors, 18);
 
 /**
  * @generated from message openseer.v1.GetMonitorUptimeTimelineRequest
@@ -635,7 +665,7 @@ export type GetMonitorUptimeTimelineRequest = Message<"openseer.v1.GetMonitorUpt
  * Use `create(GetMonitorUptimeTimelineRequestSchema)` to create a new message.
  */
 export const GetMonitorUptimeTimelineRequestSchema: GenMessage<GetMonitorUptimeTimelineRequest> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 17);
+  messageDesc(file_openseer_v1_monitors, 19);
 
 /**
  * @generated from message openseer.v1.UptimeTimelinePoint
@@ -667,7 +697,7 @@ export type UptimeTimelinePoint = Message<"openseer.v1.UptimeTimelinePoint"> & {
  * Use `create(UptimeTimelinePointSchema)` to create a new message.
  */
 export const UptimeTimelinePointSchema: GenMessage<UptimeTimelinePoint> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 18);
+  messageDesc(file_openseer_v1_monitors, 20);
 
 /**
  * @generated from message openseer.v1.GetMonitorUptimeTimelineResponse
@@ -684,7 +714,7 @@ export type GetMonitorUptimeTimelineResponse = Message<"openseer.v1.GetMonitorUp
  * Use `create(GetMonitorUptimeTimelineResponseSchema)` to create a new message.
  */
 export const GetMonitorUptimeTimelineResponseSchema: GenMessage<GetMonitorUptimeTimelineResponse> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_monitors, 19);
+  messageDesc(file_openseer_v1_monitors, 21);
 
 /**
  * @generated from service openseer.v1.MonitorsService
@@ -713,6 +743,14 @@ export const MonitorsService: GenService<{
     methodKind: "unary";
     input: typeof UpdateMonitorRequestSchema;
     output: typeof UpdateMonitorResponseSchema;
+  },
+  /**
+   * @generated from rpc openseer.v1.MonitorsService.DeleteMonitor
+   */
+  deleteMonitor: {
+    methodKind: "unary";
+    input: typeof DeleteMonitorRequestSchema;
+    output: typeof DeleteMonitorResponseSchema;
   },
   /**
    * @generated from rpc openseer.v1.MonitorsService.ListMonitors
