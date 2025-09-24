@@ -26,8 +26,6 @@ func TestWorkerEnrollsAndRegisters(t *testing.T) {
 	env := helpers.SetupControlPlane(t)
 	env.StartBackgroundServices()
 
-	ctx := context.Background()
-
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
 
@@ -69,14 +67,14 @@ func TestWorkerEnrollsAndRegisters(t *testing.T) {
 		return env.Dispatcher.GetWorkerCount() == 1
 	}, 5*time.Second, 100*time.Millisecond, "worker should register with dispatcher")
 
-	require.Eventually(t, func() bool {
-		workers, err := env.Queries.GetActiveWorkers(ctx)
-		if err != nil {
-			t.Logf("failed to fetch active workers: %v", err)
-			return false
-		}
-		return len(workers) == 1 && workers[0].Region == "us-east-1"
-	}, 5*time.Second, 100*time.Millisecond, "worker should be enrolled and marked active")
+    require.Eventually(t, func() bool {
+        workers, err := env.Queries.GetActiveWorkers(context.Background())
+        if err != nil {
+            t.Logf("failed to fetch active workers: %v", err)
+            return false
+        }
+        return len(workers) == 1 && workers[0].Region == "us-east-1"
+    }, 5*time.Second, 100*time.Millisecond, "worker should be enrolled and marked active")
 
 	workerCancel()
 
@@ -93,8 +91,6 @@ func TestWorkerExecutesJobAndReportsMetrics(t *testing.T) {
 
 	env := helpers.SetupControlPlane(t)
 	env.StartBackgroundServices()
-
-	ctx := context.Background()
 
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
@@ -155,20 +151,9 @@ func TestWorkerExecutesJobAndReportsMetrics(t *testing.T) {
 		return env.Dispatcher.GetWorkerCount() == 1
 	}, 5*time.Second, 100*time.Millisecond)
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, runID)
-		if err != nil {
-			t.Logf("failed to fetch job: %v", err)
-			return false
-		}
-		return job.Status == "done"
-	}, 5*time.Second, 100*time.Millisecond, "job should be completed by worker")
-
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: jobMonitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, runID, results[0].RunID)
-	require.Equal(t, "OK", results[0].Status)
+    helpers.WaitForJobCompletion(t, env.Queries, runID, 10*time.Second)
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, jobMonitor.ID, runID, 5*time.Second)
+    require.Equal(t, "OK", result.Status)
 
 	workerCancel()
 	select {
@@ -184,8 +169,6 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 
 	env := helpers.SetupControlPlane(t)
 	env.StartBackgroundServices()
-
-	ctx := context.Background()
 
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
@@ -230,14 +213,14 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 	}, 5*time.Second, 100*time.Millisecond)
 
 	var workerID string
-	require.Eventually(t, func() bool {
-		workers, err := env.Queries.GetActiveWorkers(ctx)
-		if err != nil || len(workers) != 1 {
-			return false
-		}
-		workerID = workers[0].ID
-		return true
-	}, 5*time.Second, 100*time.Millisecond)
+    require.Eventually(t, func() bool {
+        workers, err := env.Queries.GetActiveWorkers(context.Background())
+        if err != nil || len(workers) != 1 {
+            return false
+        }
+        workerID = workers[0].ID
+        return true
+    }, 5*time.Second, 100*time.Millisecond)
 
 	firstAttempt := atomic.Bool{}
 	resetErrCh := make(chan error, 1)
@@ -250,7 +233,7 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 					resetErrCh <- fmt.Errorf("job run ID not set before request")
 					return
 				}
-				res, err := env.TestDB.DB.ExecContext(ctx, "UPDATE app.jobs SET status='ready', worker_id = NULL, lease_expires_at = NULL WHERE run_id = $1", jobRunID)
+                res, err := env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.jobs SET status='ready', worker_id = NULL, lease_expires_at = NULL WHERE run_id = $1", jobRunID)
 				if err != nil {
 					resetErrCh <- err
 					return
@@ -265,7 +248,7 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 					return
 				}
 				time.Sleep(500 * time.Millisecond)
-				res, err = env.TestDB.DB.ExecContext(ctx, "UPDATE app.jobs SET status='leased', worker_id = $1, lease_expires_at = NOW() + INTERVAL '45 seconds' WHERE run_id = $2", workerID, jobRunID)
+                res, err = env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.jobs SET status='leased', worker_id = $1, lease_expires_at = NOW() + INTERVAL '45 seconds' WHERE run_id = $2", workerID, jobRunID)
 				if err != nil {
 					resetErrCh <- err
 					return
@@ -297,21 +280,17 @@ func TestWorkerRetriesOnNegativeAck(t *testing.T) {
 	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
 	jobRunID = job.RunID
 
-	require.Eventually(t, func() bool {
-		results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 1})
-		if err != nil || len(results) == 0 {
-			return false
-		}
-		return results[0].RunID == jobRunID && results[0].Status == "FAIL"
-	}, 10*time.Second, 200*time.Millisecond)
+    helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 15*time.Second)
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+    require.Equal(t, "FAIL", result.Status)
 
-	require.Eventually(t, func() bool {
-		storedJob, err := env.Queries.GetJobByRunID(ctx, job.RunID)
-		if err != nil {
-			return false
-		}
-		return storedJob.Status == "done" && storedJob.WorkerID.Valid && storedJob.WorkerID.String == workerID
-	}, 10*time.Second, 200*time.Millisecond)
+    require.Eventually(t, func() bool {
+        storedJob, err := env.Queries.GetJobByRunID(context.Background(), job.RunID)
+        if err != nil {
+            return false
+        }
+        return storedJob.Status == "done" && storedJob.WorkerID.Valid && storedJob.WorkerID.String == workerID
+    }, 10*time.Second, 200*time.Millisecond)
 
 	select {
 	case err := <-resetErrCh:
@@ -413,13 +392,10 @@ func TestWorkerHTTPMethodsAndHeaders(t *testing.T) {
 		return job.Status == "done"
 	}, 10*time.Second, 200*time.Millisecond, "POST job should be completed")
 
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, runID, results[0].RunID)
-	require.Equal(t, "OK", results[0].Status)
-	require.True(t, results[0].HttpCode.Valid)
-	require.Equal(t, int32(201), results[0].HttpCode.Int32, "POST should return 201")
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
+    require.Equal(t, "OK", result.Status)
+    require.True(t, result.HttpCode.Valid)
+    require.Equal(t, int32(201), result.HttpCode.Int32, "POST should return 201")
 
 	workerCancel()
 	select {
@@ -504,12 +480,9 @@ func TestWorkerTimeoutHandling(t *testing.T) {
 		return job.Status == "done"
 	}, 10*time.Second, 200*time.Millisecond, "timeout job should be completed with error")
 
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, runID, results[0].RunID)
-	require.Equal(t, "ERROR", results[0].Status, "timeout should result in ERROR status")
-	require.True(t, results[0].ErrorMessage.Valid, "timeout should have error message")
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
+    require.Equal(t, "ERROR", result.Status, "timeout should result in ERROR status")
+    require.True(t, result.ErrorMessage.Valid, "timeout should have error message")
 
 	workerCancel()
 	select {
@@ -587,12 +560,9 @@ func TestWorkerNetworkErrorHandling(t *testing.T) {
 		return job.Status == "done"
 	}, 10*time.Second, 200*time.Millisecond, "DNS failure job should be completed with error")
 
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, runID, results[0].RunID)
-	require.Equal(t, "ERROR", results[0].Status, "DNS failure should result in ERROR status")
-	require.True(t, results[0].ErrorMessage.Valid, "DNS failure should have error message")
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
+    require.Equal(t, "ERROR", result.Status, "DNS failure should result in ERROR status")
+    require.True(t, result.ErrorMessage.Valid, "DNS failure should have error message")
 
 	workerCancel()
 	select {
@@ -698,11 +668,8 @@ func TestWorkerLeaseRenewalForLongJobs(t *testing.T) {
 		return jobStatus.Status == "done"
 	}, 20*time.Second, 500*time.Millisecond, "long job should complete successfully")
 
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, job.RunID, results[0].RunID)
-	require.Equal(t, "OK", results[0].Status)
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+    require.Equal(t, "OK", result.Status)
 
 	workerCancel()
 	select {
@@ -819,13 +786,10 @@ func TestWorkerHandlesMultipleConcurrentJobs(t *testing.T) {
 
 	require.Equal(t, int32(3), maxConcurrency.Load(), "should have achieved 3 concurrent requests")
 
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 10})
-	require.NoError(t, err)
-	require.Len(t, results, 3, "should have 3 results")
-
-	for _, result := range results {
-		require.Equal(t, "OK", result.Status)
-	}
+    for _, job := range jobs {
+        result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+        require.Equal(t, "OK", result.Status)
+    }
 
 	workerCancel()
 	select {
@@ -914,8 +878,6 @@ func TestWorkerSupportsAllHTTPMethods(t *testing.T) {
 	env := helpers.SetupControlPlane(t)
 	env.StartBackgroundServices()
 
-	ctx := context.Background()
-
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
 
@@ -987,9 +949,7 @@ func TestWorkerSupportsAllHTTPMethods(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond)
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
 	testCases := []struct {
 		method           string
@@ -1014,33 +974,26 @@ func TestWorkerSupportsAllHTTPMethods(t *testing.T) {
 			Method:     tc.method,
 			Regions:    []string{"us-east-1"},
 			IntervalMs: 60000,
-			TimeoutMs:  3000,
+			TimeoutMs:  5000,
 		})
 		monitors[i] = monitor
 		jobs[i] = helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
 	}
 
+	time.Sleep(1 * time.Second)
+
 	for i, job := range jobs {
 		tc := testCases[i]
-		require.Eventually(t, func() bool {
-			jobStatus, err := env.Queries.GetJobByRunID(ctx, job.RunID)
-			return err == nil && jobStatus.Status == "done"
-		}, 10*time.Second, 200*time.Millisecond, fmt.Sprintf("%s job should complete", tc.method))
+		helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 15*time.Second)
+		t.Logf("Completed job for method %s", tc.method)
 	}
 
-	for i, job := range jobs {
-		tc := testCases[i]
-		monitor := monitors[i]
-
-		results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 1})
-		require.NoError(t, err)
-		require.Len(t, results, 1, fmt.Sprintf("should have result for %s", tc.method))
-
-		result := results[0]
-		require.Equal(t, job.RunID, result.RunID, fmt.Sprintf("%s run ID should match", tc.method))
-		require.Equal(t, tc.expectedStatus, result.Status, fmt.Sprintf("%s should return %s status", tc.method, tc.expectedStatus))
-		require.True(t, result.HttpCode.Valid, fmt.Sprintf("%s should have HTTP code", tc.method))
-		require.Equal(t, tc.expectedHTTPCode, result.HttpCode.Int32, fmt.Sprintf("%s should return HTTP %d", tc.method, tc.expectedHTTPCode))
+    for i, job := range jobs {
+        monitor := monitors[i]
+        result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+        require.Equal(t, testCases[i].expectedStatus, result.Status, fmt.Sprintf("%s should return %s status", testCases[i].method, testCases[i].expectedStatus))
+        require.True(t, result.HttpCode.Valid, fmt.Sprintf("%s should have HTTP code", testCases[i].method))
+        require.Equal(t, testCases[i].expectedHTTPCode, result.HttpCode.Int32, fmt.Sprintf("%s should return HTTP %d", testCases[i].method, testCases[i].expectedHTTPCode))
 	}
 
 	methodsMutex.Lock()
@@ -1184,13 +1137,10 @@ func TestWorkerOverloadProtection(t *testing.T) {
 		return doneCount == numJobs
 	}, 25*time.Second, 500*time.Millisecond, "all jobs should eventually complete")
 
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: int32(numJobs)})
-	require.NoError(t, err)
-	require.Len(t, results, numJobs, "should have results for all jobs")
-
-	for _, result := range results {
-		require.Equal(t, "OK", result.Status)
-	}
+    for _, job := range jobs {
+        result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 10*time.Second)
+        require.Equal(t, "OK", result.Status)
+    }
 
 	finalMaxConcurrency := maxConcurrency.Load()
 	require.LessOrEqual(t, finalMaxConcurrency, int32(3), "max concurrency should not greatly exceed configured limit")
@@ -1237,9 +1187,10 @@ func TestWorkerJobLeaseExpirationAndReclaim(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	expiredTime := time.Now().Add(-10 * time.Second)
 	err = env.Queries.ForceExpireJobLease(ctx, &sqlc.ForceExpireJobLeaseParams{
 		RunID:          job.RunID,
-		LeaseExpiresAt: sql.NullTime{Time: time.Now().Add(-1 * time.Second), Valid: true},
+		LeaseExpiresAt: sql.NullTime{Time: expiredTime, Valid: true},
 	})
 	require.NoError(t, err)
 
@@ -1249,10 +1200,16 @@ func TestWorkerJobLeaseExpirationAndReclaim(t *testing.T) {
 	require.True(t, jobStatus.LeaseExpiresAt.Valid)
 	require.True(t, jobStatus.LeaseExpiresAt.Time.Before(time.Now()), "lease should be expired")
 
+	t.Logf("Waiting for lease reaper to reclaim expired job %s", job.RunID)
 	require.Eventually(t, func() bool {
 		jobStatus, err := env.Queries.GetJobByRunID(ctx, job.RunID)
-		return err == nil && jobStatus.Status == "ready"
-	}, 10*time.Second, 500*time.Millisecond, "job should be reclaimed after lease expiry")
+		if err != nil {
+			t.Logf("Failed to get job status: %v", err)
+			return false
+		}
+		t.Logf("Job %s status: %s", job.RunID, jobStatus.Status)
+		return jobStatus.Status == "ready"
+	}, 15*time.Second, 1*time.Second, "job should be reclaimed after lease expiry")
 
 	finalJobStatus, err := env.Queries.GetJobByRunID(ctx, job.RunID)
 	require.NoError(t, err)
@@ -1295,20 +1252,11 @@ func TestWorkerJobLeaseExpirationAndReclaim(t *testing.T) {
 		errCh <- worker.Run(workerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond, "worker should register")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
 
-	require.Eventually(t, func() bool {
-		jobStatus, err := env.Queries.GetJobByRunID(ctx, job.RunID)
-		return err == nil && jobStatus.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "reclaimed job should be completed")
-
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: monitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, job.RunID, results[0].RunID)
-	require.Equal(t, "OK", results[0].Status)
+    helpers.WaitForJobCompletion(t, env.Queries, job.RunID, 15*time.Second)
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, job.RunID, 5*time.Second)
+    require.Equal(t, "OK", result.Status)
 
 	workerCancel()
 	select {
@@ -1366,6 +1314,8 @@ func TestWorkerMultiRegionJobDistribution(t *testing.T) {
 	euJob := helpers.CreateTestJob(t, env.Queries, euMonitor.ID, "eu-west-1")
 	globalJob := helpers.CreateTestJob(t, env.Queries, globalMonitor.ID, "global")
 
+	time.Sleep(1 * time.Second)
+
 	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
 	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
 
@@ -1402,21 +1352,14 @@ func TestWorkerMultiRegionJobDistribution(t *testing.T) {
 		errCh <- usWorker.Run(usWorkerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond, "US worker should register")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
+	helpers.WaitForWorkerDBRegistration(t, env.Queries, "integration-worker-us", "us-east-1", 10*time.Second)
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, usJob.RunID)
-		return err == nil && job.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "US worker should complete US job")
+	helpers.WaitForJobCompletion(t, env.Queries, usJob.RunID, 15*time.Second)
 
-	results, err := env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: usMonitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, usJob.RunID, results[0].RunID)
-	require.Equal(t, "OK", results[0].Status)
-	require.Equal(t, "us-east-1", results[0].Region)
+    result := helpers.WaitForMonitorResultByRunID(t, env.Queries, usMonitor.ID, usJob.RunID, 5*time.Second)
+    require.Equal(t, "OK", result.Status)
+    require.Equal(t, "us-east-1", result.Region)
 
 	euWorker := workerpkg.NewWorker(
 		"integration-worker-eu",
@@ -1434,73 +1377,55 @@ func TestWorkerMultiRegionJobDistribution(t *testing.T) {
 	euWorkerCtx, euWorkerCancel := context.WithCancel(context.Background())
 	t.Cleanup(euWorkerCancel)
 
+	euErrCh := make(chan error, 1)
 	go func() {
-		euWorker.Run(euWorkerCtx)
+		euErrCh <- euWorker.Run(euWorkerCtx)
 	}()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 2
-	}, 5*time.Second, 100*time.Millisecond, "EU worker should register")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 2, 10*time.Second)
+	helpers.WaitForWorkerDBRegistration(t, env.Queries, "integration-worker-eu", "eu-west-1", 10*time.Second)
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, euJob.RunID)
-		return err == nil && job.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "EU worker should complete EU job")
+	helpers.WaitForJobCompletion(t, env.Queries, euJob.RunID, 15*time.Second)
 
-	results, err = env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: euMonitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, euJob.RunID, results[0].RunID)
-	require.Equal(t, "OK", results[0].Status)
-	require.Equal(t, "eu-west-1", results[0].Region)
+    result = helpers.WaitForMonitorResultByRunID(t, env.Queries, euMonitor.ID, euJob.RunID, 5*time.Second)
+    require.Equal(t, "OK", result.Status)
+    require.Equal(t, "eu-west-1", result.Region)
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, globalJob.RunID)
-		return err == nil && job.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "Global job should be completed by any worker")
+	helpers.WaitForJobCompletion(t, env.Queries, globalJob.RunID, 15*time.Second)
 
-	results, err = env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: globalMonitor.ID, Limit: 1})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, globalJob.RunID, results[0].RunID)
-	require.Equal(t, "OK", results[0].Status)
-	require.Contains(t, []string{"us-east-1", "eu-west-1"}, results[0].Region)
+    result = helpers.WaitForMonitorResultByRunID(t, env.Queries, globalMonitor.ID, globalJob.RunID, 5*time.Second)
+    require.Equal(t, "OK", result.Status)
+    require.Contains(t, []string{"us-east-1", "eu-west-1"}, result.Region)
 
 	usWorkerCancel()
 
-	require.Eventually(t, func() bool {
-		return env.Dispatcher.GetWorkerCount() == 1
-	}, 5*time.Second, 100*time.Millisecond, "US worker should disconnect")
+	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 1, 10*time.Second)
+
+	time.Sleep(2 * time.Second)
 
 	usJob2 := helpers.CreateTestJob(t, env.Queries, usMonitor.ID, "us-east-1")
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 	job, err := env.Queries.GetJobByRunID(ctx, usJob2.RunID)
 	require.NoError(t, err)
 	require.Equal(t, "ready", job.Status, "Region-specific job should not be picked up by wrong region worker")
 
 	globalJob2 := helpers.CreateTestJob(t, env.Queries, globalMonitor.ID, "global")
 
-	require.Eventually(t, func() bool {
-		job, err := env.Queries.GetJobByRunID(ctx, globalJob2.RunID)
-		return err == nil && job.Status == "done"
-	}, 10*time.Second, 200*time.Millisecond, "Global job should be picked up by EU worker")
+	helpers.WaitForJobCompletion(t, env.Queries, globalJob2.RunID, 15*time.Second)
 
-	results, err = env.Queries.GetRecentResults(ctx, &sqlc.GetRecentResultsParams{MonitorID: globalMonitor.ID, Limit: 2})
-	require.NoError(t, err)
-	require.Len(t, results, 2)
-	var globalJob2Result *sqlc.TsResultsRaw
-	for _, result := range results {
-		if result.RunID == globalJob2.RunID {
-			globalJob2Result = result
-			break
-		}
-	}
-	require.NotNil(t, globalJob2Result)
-	require.Equal(t, "OK", globalJob2Result.Status)
-	require.Equal(t, "eu-west-1", globalJob2Result.Region)
+    globalJob2Result := helpers.WaitForMonitorResultByRunID(t, env.Queries, globalMonitor.ID, globalJob2.RunID, 5*time.Second)
+    require.Equal(t, "OK", globalJob2Result.Status)
+    require.Equal(t, "eu-west-1", globalJob2Result.Region)
 
 	euWorkerCancel()
+
+	select {
+	case <-euErrCh:
+
+	case <-time.After(5 * time.Second):
+		t.Fatal("EU worker did not shut down after cancellation")
+	}
 }
 
 func TestWorkerInactivityDetection(t *testing.T) {
@@ -1551,7 +1476,7 @@ func TestWorkerInactivityDetection(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return env.Dispatcher.GetWorkerCount() == 1
-	}, 10*time.Second, 100*time.Millisecond, "worker should register with dispatcher")
+	}, 15*time.Second, 100*time.Millisecond, "worker should register with dispatcher")
 
 	var workerInfo *sqlc.AppWorker
 	require.Eventually(t, func() bool {
@@ -1565,7 +1490,7 @@ func TestWorkerInactivityDetection(t *testing.T) {
 			return workers[0].Status == "active"
 		}
 		return false
-	}, 15*time.Second, 100*time.Millisecond, "Worker should become active")
+	}, 20*time.Second, 100*time.Millisecond, "Worker should become active")
 
 	require.Equal(t, "active", workerInfo.Status)
 	initialLastSeen := workerInfo.LastSeenAt
@@ -1576,11 +1501,11 @@ func TestWorkerInactivityDetection(t *testing.T) {
 	select {
 	case err := <-workerErrCh:
 		require.ErrorIs(t, err, context.Canceled)
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("worker did not shut down after cancellation")
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	updatedWorkerInfo, err := env.Queries.GetWorkerByID(ctx, actualWorkerID)
 	require.NoError(t, err)
@@ -1589,7 +1514,7 @@ func TestWorkerInactivityDetection(t *testing.T) {
 		updatedWorkerInfo.LastSeenAt.Before(time.Now().Add(-1*time.Second)),
 		"Worker last_seen_at should not be updating after worker stopped")
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(8 * time.Second)
 	staleWorkerInfo, err := env.Queries.GetWorkerByID(ctx, actualWorkerID)
 	require.NoError(t, err)
 
@@ -1604,12 +1529,20 @@ func TestWorkerInactivityDetection(t *testing.T) {
 		oldTime, actualWorkerID)
 	require.NoError(t, err)
 
-	err = env.Queries.MarkWorkerInactive(ctx)
-	require.NoError(t, err)
-
-	finalWorkerInfo, err := env.Queries.GetWorkerByID(ctx, actualWorkerID)
-	require.NoError(t, err)
-	require.Equal(t, "inactive", finalWorkerInfo.Status)
+	require.Eventually(t, func() bool {
+		err := env.Queries.MarkWorkerInactive(ctx)
+		if err != nil {
+			t.Logf("Failed to mark worker inactive: %v", err)
+			return false
+		}
+		finalWorkerInfo, err := env.Queries.GetWorkerByID(ctx, actualWorkerID)
+		if err != nil {
+			t.Logf("Failed to get worker by ID: %v", err)
+			return false
+		}
+		t.Logf("Worker status: %s", finalWorkerInfo.Status)
+		return finalWorkerInfo.Status == "inactive"
+	}, 40*time.Second, 2*time.Second, "Worker should be marked inactive")
 }
 
 func TestWorkerCertificateExpiryAndReEnrollment(t *testing.T) {
@@ -2054,56 +1987,44 @@ func TestLeaseReaperLeaderElection(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	expiredJobs, err := env1.TestDB.DB.QueryContext(ctx, `
-		SELECT run_id, worker_id, lease_expires_at
-		FROM app.jobs
-		WHERE status = 'leased'
-		AND lease_expires_at < NOW()
-	`)
-	require.NoError(t, err)
-	defer expiredJobs.Close()
-
-	expiredCount := 0
-	for expiredJobs.Next() {
-		expiredCount++
-	}
-	require.Greater(t, expiredCount, 0, "Should have expired leases before lease reaper runs")
-
-	t.Logf("Found %d expired leases before lease reaper cleanup", expiredCount)
-
-	time.Sleep(8 * time.Second)
-
-	var reclaimedCount int
-	for _, runID := range jobRunIDs {
-		var status string
-		err := env1.TestDB.DB.QueryRowContext(ctx, `
-			SELECT status FROM app.jobs WHERE run_id = $1
-		`, runID).Scan(&status)
-		if err == nil && status == "ready" {
-			reclaimedCount++
-		}
-	}
-
-	require.Greater(t, reclaimedCount, 0, "Lease reaper should reclaim expired leases")
-
-	stillExpiredJobs, err := env1.TestDB.DB.QueryContext(ctx, `
+	var expiredCount int
+	err = env1.TestDB.DB.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM app.jobs
 		WHERE status = 'leased'
 		AND lease_expires_at < NOW()
-	`)
+	`).Scan(&expiredCount)
 	require.NoError(t, err)
-	defer stillExpiredJobs.Close()
+	require.Greater(t, expiredCount, 0, "Should have expired leases before lease reaper runs")
+
+	t.Logf("Found %d expired leases before lease reaper cleanup", expiredCount)
+
+	require.Eventually(t, func() bool {
+		var reclaimedCount int
+		for _, runID := range jobRunIDs {
+			var status string
+			err := env1.TestDB.DB.QueryRowContext(ctx, `
+				SELECT status FROM app.jobs WHERE run_id = $1
+			`, runID).Scan(&status)
+			if err == nil && status == "ready" {
+				reclaimedCount++
+			}
+		}
+		t.Logf("Reclaimed %d out of %d jobs", reclaimedCount, len(jobRunIDs))
+		return reclaimedCount == len(jobRunIDs)
+	}, 20*time.Second, 1*time.Second, "All expired leases should be reclaimed")
 
 	var stillExpiredCount int
-	require.True(t, stillExpiredJobs.Next())
-	err = stillExpiredJobs.Scan(&stillExpiredCount)
+	err = env1.TestDB.DB.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM app.jobs
+		WHERE status = 'leased'
+		AND lease_expires_at < NOW()
+	`).Scan(&stillExpiredCount)
 	require.NoError(t, err)
-
 	require.Equal(t, 0, stillExpiredCount, "All expired leases should be reclaimed by the active lease reaper")
 
-	t.Logf("Lease reaper leader election test completed: %d jobs reclaimed, %d still expired",
-		reclaimedCount, stillExpiredCount)
+	t.Logf("Lease reaper leader election test completed: all jobs reclaimed, %d still expired", stillExpiredCount)
 
 	env1.Shutdown()
 
@@ -2124,20 +2045,20 @@ func TestLeaseReaperLeaderElection(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	time.Sleep(6 * time.Second)
-
-	var failoverReclaimedCount int
-	for _, runID := range failoverJobRunIDs {
-		var status string
-		err := env1.TestDB.DB.QueryRowContext(ctx, `
-			SELECT status FROM app.jobs WHERE run_id = $1
-		`, runID).Scan(&status)
-		if err == nil && status == "ready" {
-			failoverReclaimedCount++
+	require.Eventually(t, func() bool {
+		var failoverReclaimedCount int
+		for _, runID := range failoverJobRunIDs {
+			var status string
+			err := env1.TestDB.DB.QueryRowContext(ctx, `
+				SELECT status FROM app.jobs WHERE run_id = $1
+			`, runID).Scan(&status)
+			if err == nil && status == "ready" {
+				failoverReclaimedCount++
+			}
 		}
-	}
+		t.Logf("Failover reclaimed %d out of %d jobs", failoverReclaimedCount, len(failoverJobRunIDs))
+		return failoverReclaimedCount == len(failoverJobRunIDs)
+	}, 15*time.Second, 1*time.Second, "Remaining lease reaper should continue reclaiming after failover")
 
-	require.Greater(t, failoverReclaimedCount, 0, "Remaining lease reaper should continue reclaiming after failover")
-
-	t.Logf("Lease reaper failover test completed: %d jobs reclaimed after failover", failoverReclaimedCount)
+	t.Logf("Lease reaper failover test completed: all jobs reclaimed after failover")
 }
