@@ -40,7 +40,6 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
         url: newMonitorUrl,
         intervalMs: parseInt(newMonitorInterval),
         timeoutMs: 5000,
-        regions: ['us-east-1'],
         method: newMonitorMethod,
         enabled: true,
       });
