@@ -44,6 +44,12 @@ type Middleware struct {
 	db *sql.DB
 }
 
+var validCookieNames = []string{
+	"__Host-openseer.session_token",
+	"__Secure-openseer.session_token",
+	"openseer.session_token",
+}
+
 func NewMiddleware(db *sql.DB) *Middleware {
 	return &Middleware{
 		db: db,
@@ -112,21 +118,60 @@ func (m *Middleware) VerifySession(sessionToken string) (*Session, error) {
 }
 
 func (m *Middleware) ExtractSessionToken(r *http.Request) string {
+	if token := extractSessionFromHeaders(r); token != "" {
+		return token
+	}
+	return extractSessionFromCookies(r)
+}
+
+func extractSessionFromHeaders(r *http.Request) string {
 	authHeader := r.Header.Get("Authorization")
-	if authHeader != "" {
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) == 2 && parts[0] == "Bearer" {
-			return parts[1]
+	if authHeader == "" {
+		return ""
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	if parts[0] != "Bearer" {
+		return ""
+	}
+	return parts[1]
+}
+
+func extractSessionFromCookies(r *http.Request) string {
+	availableCookies := map[string]string{}
+	for _, cookie := range r.Cookies() {
+		if cookie == nil {
+			continue
 		}
+		if _, exists := availableCookies[cookie.Name]; exists {
+			continue
+		}
+		availableCookies[cookie.Name] = cookie.Value
 	}
 
-	cookie, err := r.Cookie("openseer.session_token")
-	if err == nil {
-		decoded, err := url.QueryUnescape(cookie.Value)
-		if err != nil {
-			return cookie.Value
+	for _, name := range validCookieNames {
+		value, ok := availableCookies[name]
+		if !ok {
+			continue
 		}
-		return decoded
+		if value == "" {
+			continue
+		}
+		if strings.Contains(value, "%") {
+			if decoded, err := url.PathUnescape(value); err == nil {
+				value = decoded
+			}
+		}
+		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+			value = value[1 : len(value)-1]
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		return value
 	}
 
 	return ""
