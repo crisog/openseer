@@ -39,8 +39,8 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 tanstack
 
-# Copy the built application from TanStack Start (.output directory)
-COPY --from=builder --chown=tanstack:nodejs /app/.output ./
+# Copy the built application from TanStack Start (dist directory)
+COPY --from=builder --chown=tanstack:nodejs /app/dist ./
 
 USER tanstack
 
@@ -50,4 +50,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Start the TanStack Start server
-CMD ["node", "server/index.mjs"]
+CMD ["node", "server/server.js"]
