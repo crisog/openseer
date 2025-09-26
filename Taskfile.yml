@@ -1,319 +1,52 @@
 version: '3'
 
 vars:
-  DEPLOYMENTS_DIR: deployments
+  COMPOSE_DIR: deployments
   WEB_DIR: web
   DATABASE_URL: postgresql://openseer:openseer@localhost:5432/openseer
 
 tasks:
-  default:
-    desc: Show help information
+  up:
+    desc: Start all application services
+    dir: '{{.COMPOSE_DIR}}'
     cmds:
-      - task --list
+      - docker compose --profile app up -d --wait
 
-  # Database tasks
-  db-up:
-    desc: Start TimescaleDB database
-    dir: '{{.DEPLOYMENTS_DIR}}'
+  down:
+    desc: Stop all application services
+    dir: '{{.COMPOSE_DIR}}'
     cmds:
-      - docker compose up -d timescaledb
+      - docker compose --profile app down --remove-orphans
 
-  db-init:
-    desc: Initialize database with auth tables
-    deps: [db-up]
+  clean:
+    desc: Remove containers and volumes for the stack
+    dir: '{{.COMPOSE_DIR}}'
     cmds:
-      - task web-migrate
+      - docker compose --profile app down --volumes --remove-orphans
 
-  db-down:
-    desc: Stop TimescaleDB database
-    dir: '{{.DEPLOYMENTS_DIR}}'
+  migrate:
+    desc: Run backend and web database migrations
     cmds:
-      - docker compose stop timescaledb
+      - task: _ensure-db
+      - task: _migrate-web
+      - task: _migrate-backend
 
-  db-clean:
-    desc: Stop and remove TimescaleDB with volumes
-    dir: '{{.DEPLOYMENTS_DIR}}'
+  _ensure-db:
+    internal: true
+    dir: '{{.COMPOSE_DIR}}'
     cmds:
-      - docker compose down -v timescaledb
+      - docker compose up -d --wait timescaledb
 
-  # Control-plane tasks
-  control-up:
-    desc: Start control-plane service
-    deps: [db-init]
-    dir: '{{.DEPLOYMENTS_DIR}}'
+  _migrate-backend:
+    internal: true
+    dir: '{{.COMPOSE_DIR}}'
     cmds:
-      - docker compose --profile app up -d control-plane
+      - docker compose run --rm migrate-up
 
-  control-down:
-    desc: Stop control-plane service
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose stop control-plane
-
-  control-restart:
-    desc: Restart control-plane service
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose restart control-plane
-
-  # Worker tasks
-  worker-up:
-    desc: Start worker service
-    deps: [control-up]
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose --profile app up -d worker
-
-  worker-down:
-    desc: Stop worker service
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose stop worker
-
-  worker-restart:
-    desc: Restart worker service
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose restart worker
-
-  scale-workers:
-    desc: Scale workers to N instances (usage - task scale-workers N=3)
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - |
-        if [ -z "{{.N}}" ]; then
-          echo "Usage: task scale-workers N=3"
-          exit 1
-        fi
-        docker compose up -d --scale worker={{.N}} --no-recreate worker
-        echo "Scaled workers to {{.N}} instances"
-
-  # Web tasks
-  web-up:
-    desc: Start web service
-    deps: [db-init]
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose --profile app up -d web
-
-  web-down:
-    desc: Stop web service
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose stop web
-
-  web-restart:
-    desc: Restart web service
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose restart web
-
-  web-dev:
-    desc: Start web development server
-    deps: [db-init]
-    dir: '{{.WEB_DIR}}'
-    cmds:
-      - npm run dev
-
-  web-build:
-    desc: Build web application
-    dir: '{{.WEB_DIR}}'
-    cmds:
-      - npm run build
-
-  web-migrate:
-    desc: Run web authentication migrations
-    deps: [db-up]
+  _migrate-web:
+    internal: true
     dir: '{{.WEB_DIR}}'
     env:
       DATABASE_URL: '{{.DATABASE_URL}}'
     cmds:
       - echo "y" | npm run auth:migrate
-
-  # Backend composite tasks
-  backend-up:
-    desc: Start backend services
-    deps: [control-up, worker-up]
-    cmds:
-      - echo "Backend services started"
-
-  backend-down:
-    desc: Stop backend services
-    deps: [worker-down, control-down]
-    cmds:
-      - echo "Backend services stopped"
-
-  # Main orchestration tasks
-  up:
-    desc: Start all services
-    deps: [migrate-up, control-up, worker-up, web-up]
-    cmds:
-      - echo "All services started"
-
-  down:
-    desc: Stop all services
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose --profile app down
-
-  clean:
-    desc: Stop all services and remove volumes
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose --profile app down -v
-
-  # Migration tasks
-  migrate-up:
-    desc: Run database migrations up
-    deps: [db-init]
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose run --rm migrate-up
-
-  migrate-down:
-    desc: Run database migrations down
-    deps: [db-up]
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose run --rm migrate-down
-
-  sqlc:
-    desc: Generate SQL code with sqlc
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose run --rm sqlc
-
-  # Build tasks
-  build:
-    desc: Build control-plane and worker images
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose build control-plane worker
-
-  build-all:
-    desc: Build all Docker images
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose build
-
-  build-control:
-    desc: Build control-plane image
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose build control-plane
-
-  build-worker:
-    desc: Build worker image
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose build worker
-
-  build-web:
-    desc: Build web image
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose build web
-
-  # Development environment tasks
-  dev:
-    desc: Setup development environment
-    deps: [migrate-up, sqlc]
-    cmds:
-      - echo "==================================="
-      - echo "Development environment ready!"
-      - echo "==================================="
-      - echo "Database - postgres://openseer:openseer@localhost:5432/openseer"
-      - echo ""
-      - echo "Quick commands -"
-      - echo "  task dev-backend    - Start backend services with Air hot reload"
-      - echo "  task dev-web        - Start web in dev mode (local)"
-      - echo "  task dev-full       - Start everything for full-stack dev"
-      - echo "  task test-local     - Run backend locally (Go run)"
-      - echo ""
-      - echo "Individual services -"
-      - echo "  task control-up/down - Control-plane service (with Air hot reload)"
-      - echo "  task worker-up/down  - Worker service(s) (with Air hot reload)"
-      - echo "  task web-up/down     - Web service (container)"
-      - echo "  task web-dev         - Web dev server (local)"
-
-  dev-backend:
-    desc: Start development backend with hot reload
-    deps: [dev, backend-up]
-    cmds:
-      - echo "Backend development environment running with Air hot reload"
-      - echo "Control-plane - http://localhost:8080"
-      - echo "Enrollment - http://localhost:8079"
-
-  dev-web:
-    desc: Prepare web development environment
-    deps: [dev]
-    cmds:
-      - echo "Web development environment ready"
-      - echo "Run 'task web-dev' to start TanStack Start dev server"
-
-  dev-full:
-    desc: Start full-stack development environment
-    deps: [dev, backend-up, web-up]
-    cmds:
-      - echo "==================================="
-      - echo "Full-stack environment ready!"
-      - echo "==================================="
-      - echo "All services running in Docker"
-
-  test-local:
-    desc: Run backend locally with Go
-    deps: [migrate-up]
-    cmds:
-      - go run ./cmd/control-plane &
-      - sleep 2
-      - go run ./cmd/worker
-
-  # Logging tasks
-  logs:
-    desc: Show logs for all services
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose --profile app logs -f
-
-  logs-control:
-    desc: Show control-plane logs
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose logs -f control-plane
-
-  logs-worker:
-    desc: Show worker logs
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose logs -f worker
-
-  logs-web:
-    desc: Show web logs
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose logs -f web
-
-  logs-db:
-    desc: Show database logs
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose logs -f timescaledb
-
-  # Utility tasks
-  psql:
-    desc: Connect to PostgreSQL database
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose exec timescaledb psql -U openseer
-
-  status:
-    desc: Show Docker Compose service status
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose ps
-
-  restart:
-    desc: Restart all services
-    dir: '{{.DEPLOYMENTS_DIR}}'
-    cmds:
-      - docker compose --profile app restart
