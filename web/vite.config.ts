@@ -25,4 +25,7 @@ export default defineConfig({
     nitro(),
     viteReact(),
   ],
+  ssr: {
+    external: ['pg'],
+  },
 })
