@@ -6,12 +6,29 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router"
+import { TanStackDevtools } from "@tanstack/react-devtools"
+import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools"
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import appCss from "@/styles/app.css?url"
 import { QueryProvider } from "@/components/providers/query-provider"
+import { authQueryOptions, type AuthQueryResult } from "@/lib/auth/queries"
+
+const siteConfig = {
+  title: "OpenSeer - Advanced Uptime Monitoring",
+  description: "Monitor your websites and APIs with precision. Get instant alerts, detailed analytics, and comprehensive uptime tracking.",
+}
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
+  user: AuthQueryResult | null;
 }>()({
+  beforeLoad: async ({ context }) => {
+    try {
+      context.queryClient.prefetchQuery(authQueryOptions());
+    } catch (error) {
+      console.warn('Failed to prefetch auth:', error);
+    }
+  },
   notFoundComponent: () => (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
       <div className="text-center">
@@ -31,11 +48,11 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "OpenSeer - Advanced Uptime Monitoring"
+        title: siteConfig.title
       },
       {
         name: "description",
-        content: "Monitor your websites and APIs with precision. Get instant alerts, detailed analytics, and comprehensive uptime tracking."
+        content: siteConfig.description
       }
     ],
     links: [
@@ -82,6 +99,22 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
         <QueryProvider>
           {children}
         </QueryProvider>
+
+        {process.env.NODE_ENV === 'development' && (
+          <TanStackDevtools
+            plugins={[
+              {
+                name: "TanStack Query",
+                render: <ReactQueryDevtoolsPanel />,
+              },
+              {
+                name: "TanStack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+        )}
+
         <Scripts />
       </body>
     </html>
