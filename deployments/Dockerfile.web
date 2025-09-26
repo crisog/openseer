@@ -34,6 +34,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 tanstack
 
 COPY --from=builder --chown=tanstack:nodejs /app/.output ./
+COPY --from=deps /app/node_modules ./node_modules
 
 USER tanstack
 

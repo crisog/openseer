@@ -10,9 +10,6 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
   },
-  ssr: {
-    noExternal: true,
-  },
   plugins: [
     tailwindcss(),
     tsconfigPaths({
