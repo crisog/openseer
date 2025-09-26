@@ -1,4 +1,4 @@
-import { authClient } from "@/lib/auth-client";
+import authClient from "@/lib/auth-client";
 import { userClient } from "@/lib/api/connect-client";
 import { create } from "@bufbuild/protobuf";
 import { GetUserProfileRequestSchema } from "@/lib/gen/openseer/v1/user_pb";
