@@ -1,13 +1,13 @@
 # OpenSeer — Distributed HTTP Monitoring
 
-Self-hosted, horizontally scalable HTTP monitoring with a modern web interface. Multi-user support with secure authentication, real-time dashboards, and comprehensive monitoring management. Built with Go backend and Next.js frontend.
+Self-hosted, horizontally scalable HTTP monitoring with a modern web interface. Multi-user support with secure authentication, real-time dashboards, and comprehensive monitoring management. Built with Go backend and TanStack Start frontend.
 
 ## Architecture
 
 ```mermaid
 graph TB
     Users[👥 Users]
-    WebUI[🌐 Web UI<br/>Next.js :3000]
+    WebUI[🌐 Web UI<br/>TanStack Start :3000]
     ControlPlane[🎯 Control Plane<br/>Go :8081/:8082]
     Database[(🗄️ TimescaleDB<br/>PostgreSQL)]
 
@@ -35,7 +35,7 @@ graph TB
 
 OpenSeer consists of four main components:
 
-- **Web Frontend (Next.js)** - Modern dashboard with real-time metrics visualization, multi-user support with secure session-based authentication
+- **Web Frontend (TanStack Start)** - Modern dashboard with real-time metrics visualization, multi-user support with secure session-based authentication
 - **Control Plane (Go)** - Service managing workers and job scheduling
 - **Workers (Go)** - Distributed agents executing HTTP checks across geographic regions, communicating via mTLS gRPC
 - **Database (PostgreSQL + TimescaleDB)** - Time-series storage with automatic aggregation (1-minute, 1-hour, and 1-day intervals), P50/P95/P99 latency tracking, and uptime statistics

@@ -1,5 +1,5 @@
 name: Web CI
-description: Install, type-check, and build Next.js app
+description: Install, type-check, and build TanStack Start app
 inputs:
   node-version:
     description: Node.js version

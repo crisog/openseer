@@ -249,7 +249,7 @@ tasks:
     deps: [dev]
     cmds:
       - echo "Web development environment ready"
-      - echo "Run 'task web-dev' to start Next.js dev server"
+      - echo "Run 'task web-dev' to start TanStack Start dev server"
 
   dev-full:
     desc: Start full-stack development environment
