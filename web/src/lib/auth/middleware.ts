@@ -1,5 +1,6 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest, setResponseStatus } from "@tanstack/react-start/server";
+import { redirect } from "@tanstack/react-router";
 import { auth } from "@/lib/auth";
 
 /**
@@ -26,23 +27,15 @@ export const authMiddleware = createMiddleware().server(async ({ next }) => {
 
     // If user is authenticated and tries to access auth pages, redirect to dashboard
     if (session && isAuthPage) {
-      setResponseStatus(302);
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: "/dashboard"
-        }
+      throw redirect({
+        to: "/dashboard"
       });
     }
 
     // If user is not authenticated and tries to access protected pages, redirect to login
     if (!session && isDashboard) {
-      setResponseStatus(302);
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: "/"
-        }
+      throw redirect({
+        to: "/"
       });
     }
 

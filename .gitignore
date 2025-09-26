@@ -9,6 +9,9 @@
 *.dylib
 bin/
 
+# Tanstack Start
+dist/
+
 ## Env
 .env*
 
