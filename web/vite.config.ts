@@ -14,9 +14,12 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
-    tsconfigPaths(),
+    tsconfigPaths({
+      projects: ['./tsconfig.json'],
+    }),
     tanstackStart({
       srcDirectory: 'src',
+      start: { entry: 'src/start.ts' },
       router: {
         routesDirectory: 'app',
       },
