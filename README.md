@@ -46,52 +46,25 @@ For detailed architecture documentation, see:
 
 ## Quick Start
 
-Start the complete stack with one command:
+Use the Taskfile to prepare the database and bring everything up:
 
 ```bash
-task up
+task migrate  # Runs auth + backend migrations sequentially
+task up       # Starts TimescaleDB, control-plane, worker, and web services
 ```
 
 Then access:
 - **Web UI**: http://localhost:3000
 - **API**: https://localhost:8082
 
-### Step-by-Step Setup
+### Operational Commands
 
-1. **Start Database**
-   ```bash
-   task db-up       # PostgreSQL + TimescaleDB
-   task migrate-up  # Database migrations
-   ```
+- `task migrate` — Ensures TimescaleDB is healthy, runs auth migrations, then backend migrations.
+- `task up` — Brings every service up via Docker Compose (app profile) and waits for health checks.
+- `task down` — Stops the stack and removes stray containers.
+- `task clean` — Stops the stack and deletes associated volumes for a fresh start.
 
-2. **Start Services**
-   ```bash
-   task backend-up  # Control plane + workers
-   task web-up      # Web interface
-   ```
-
-3. **Create Monitors**
-   - Open http://localhost:3000
-   - Sign up/sign in
-   - Add monitors via the web interface
-
-### Development Mode
-
-For development with hot-reload:
-
-```bash
-task dev-full    # Full stack with live reload
-```
-
-### Common Commands
-
-```bash
-task logs              # View all service logs
-task scale-workers N=3 # Scale workers
-task psql              # Database CLI
-task build             # Build images
-task --list            # Show all available tasks
-```
+After the stack is running, open http://localhost:3000, sign in, and manage monitors through the web UI.
 
 ## Contributing
 
