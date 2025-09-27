@@ -3,6 +3,7 @@ import { useRouter, useRouterState } from '@tanstack/react-router';
 import { AlertTriangle, Monitor, Settings, BarChart3, HelpCircle, LogOut } from 'lucide-react';
 
 import { Separator } from '@/components/ui/separator';
+import { signOut } from '@/lib/auth-client';
 
 import { useSidebar } from './MainLayout';
 
@@ -81,7 +82,13 @@ export function Sidebar(): React.JSX.Element {
   };
 
   const handleLogout = async (): Promise<void> => {
-    router.navigate({ to: '/' });
+    try {
+      await signOut();
+      router.navigate({ to: '/' });
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+      router.navigate({ to: '/' });
+    }
   };
 
   const renderNavItem = (
