@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AlertTriangle, Monitor, Settings, BarChart3, HelpCircle, LogOut } from 'lucide-react';
+import { signOut } from '@/lib/auth-client';
 
 import { Separator } from '@/components/ui/separator';
 
@@ -86,7 +87,13 @@ export function Sidebar(): React.JSX.Element {
   };
 
   const handleLogout = async (): Promise<void> => {
-    router.push('/');
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error logging out:', error);
+    } finally {
+      router.push('/');
+    }
   };
 
   const renderNavItem = (
