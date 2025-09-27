@@ -19,7 +19,7 @@ import type { Monitor as PbMonitor } from '@/lib/gen/openseer/v1/monitors_pb';
 export function MonitorsList(): React.JSX.Element {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deletingMonitors, setDeletingMonitors] = useState<Set<string>>(new Set());
-  const { refreshInterval, setRefreshInterval, triggerRefresh, isRefreshing } = useRefresh();
+  const { refreshInterval, setRefreshInterval, triggerRefresh, isRefreshing, lastRefresh } = useRefresh();
 
   const { data: session } = useSession();
   const userId = session?.user?.id;
@@ -154,7 +154,7 @@ export function MonitorsList(): React.JSX.Element {
               onConfigure={(id) => {
                 console.log('Configure:', id);
               }}
-              uptimePercentage={99.5}
+              lastRefresh={lastRefresh}
             />
           ))}
         </div>

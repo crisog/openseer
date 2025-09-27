@@ -2,11 +2,13 @@
 import React from 'react';
 import { memo } from 'react'
 import { useRouter } from '@tanstack/react-router';
-import { Pause, Play, Trash2, TrendingUp, BarChart3, Settings, Activity, Clock } from 'lucide-react';
+import { Pause, Play, Trash2, TrendingUp, BarChart3, Settings, Activity } from 'lucide-react';
+import { useQuery } from '@connectrpc/connect-query';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MonitorsService } from '@/lib/gen/openseer/v1/monitors_pb';
 
 interface MonitorCardProps {
   monitor: {
@@ -23,7 +25,7 @@ interface MonitorCardProps {
   onConfigure: (id: string) => void;
   isToggling?: boolean;
   isDeleting?: boolean;
-  uptimePercentage?: number;
+  lastRefresh?: Date | null;
 }
 
 function MonitorCardInner({
@@ -33,14 +35,111 @@ function MonitorCardInner({
   onConfigure,
   isToggling = false,
   isDeleting = false,
-  uptimePercentage
+  lastRefresh
 }: MonitorCardProps): React.JSX.Element {
   const router = useRouter();
   const intervalSeconds = Math.round(monitor.intervalMs / 1000);
-  
+
+  const uptimeQuery = useQuery(
+    MonitorsService.method.getMonitorUptime,
+    { monitorId: monitor.id, timeRange: '24h' },
+    {
+      enabled: Boolean(monitor.id),
+      staleTime: 2 * 60 * 1000,
+    }
+  );
+
+  const metricsQuery = useQuery(
+    MonitorsService.method.getMonitorMetrics,
+    { monitorId: monitor.id },
+    {
+      enabled: Boolean(monitor.id),
+      staleTime: 2 * 60 * 1000,
+    }
+  );
+
+  const uptimePercentage = React.useMemo(() => {
+    const value = uptimeQuery.data?.uptimePercentage;
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return null;
+    }
+    return value;
+  }, [uptimeQuery.data]);
+
+  const averageResponseMs = React.useMemo(() => {
+    const metrics = metricsQuery.data?.metrics;
+    if (!metrics || metrics.length === 0) return null;
+
+    let weightedSum = 0;
+    let weightedCount = 0;
+
+    metrics.forEach(metric => {
+      const avg = metric.avgMs;
+      if (typeof avg !== 'number' || !Number.isFinite(avg)) {
+        return;
+      }
+
+      const countValue = Number(metric.count);
+      if (Number.isFinite(countValue) && countValue > 0) {
+        weightedSum += avg * countValue;
+        weightedCount += countValue;
+      }
+    });
+
+    if (weightedCount > 0) {
+      return weightedSum / weightedCount;
+    }
+
+    const fallbacks = metrics
+      .map(metric => metric.avgMs)
+      .filter(ms => typeof ms === 'number' && Number.isFinite(ms));
+
+    if (!fallbacks.length) {
+      return null;
+    }
+
+    const total = fallbacks.reduce((acc, ms) => acc + ms, 0);
+    return total / fallbacks.length;
+  }, [metricsQuery.data]);
+
+  const { refetch: refetchUptime } = uptimeQuery;
+  const { refetch: refetchMetrics } = metricsQuery;
+
+  React.useEffect(() => {
+    if (!lastRefresh) return;
+    void refetchUptime();
+    void refetchMetrics();
+  }, [lastRefresh, refetchUptime, refetchMetrics]);
+
   const handleViewDetails = () => {
     router.navigate({ to: `/monitors/${monitor.id}` });
   };
+
+  const uptimeDisplay = React.useMemo(() => {
+    if (uptimeQuery.isPending) {
+      return 'Loading...';
+    }
+    if (uptimeQuery.isError) {
+      return '—';
+    }
+    if (uptimePercentage === null) {
+      return '—';
+    }
+    return `${uptimePercentage.toFixed(2)}%`;
+  }, [uptimeQuery.isPending, uptimeQuery.isError, uptimePercentage]);
+
+  const averageResponseDisplay = React.useMemo(() => {
+    if (metricsQuery.isPending) {
+      return 'Loading...';
+    }
+    if (metricsQuery.isError) {
+      return '—';
+    }
+    if (averageResponseMs === null) {
+      return 'No data';
+    }
+    return `${Math.round(averageResponseMs)} ms`;
+  }, [metricsQuery.isPending, metricsQuery.isError, averageResponseMs]);
 
   return (
     <Card className="surface p-2 gap-2">
@@ -59,6 +158,9 @@ function MonitorCardInner({
           <Badge variant="outline" className="text-xs px-1.5 py-0">
             {monitor.expectedStatus}
           </Badge>
+          <Badge variant="outline" className="text-xs px-1.5 py-0">
+            {intervalSeconds}s
+          </Badge>
         </div>
       </CardHeader>
 
@@ -71,22 +173,8 @@ function MonitorCardInner({
             </div>
             <div className="space-y-1">
               <div className="flex items-baseline gap-1">
-                {uptimePercentage !== undefined ? (
-                  <span className="text-xs font-semibold">{uptimePercentage.toFixed(1)}%</span>
-                ) : !monitor.enabled ? (
-                  <span className="text-xs font-semibold text-muted-foreground">0.0%</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Loading...</span>
-                )}
+                <span className="text-sm font-semibold">{uptimeDisplay}</span>
               </div>
-            </div>
-
-            <div className="mt-2">
-              <div className="flex items-center gap-1 mb-1">
-                <Clock className="w-3 h-3 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Interval</p>
-              </div>
-              <div className="text-xs font-semibold">{intervalSeconds}s</div>
             </div>
           </div>
 
@@ -95,9 +183,8 @@ function MonitorCardInner({
               <TrendingUp className="w-3 h-3 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">Response Time (24h)</p>
             </div>
-            {/* Placeholder for MiniLatencyChart - to be implemented */}
-            <div className="h-12 bg-secondary/20 rounded flex items-center justify-center">
-              <span className="text-xs text-muted-foreground">Chart</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold leading-tight text-foreground">{averageResponseDisplay}</span>
             </div>
           </div>
         </div>
