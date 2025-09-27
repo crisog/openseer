@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useMutation } from '@connectrpc/connect-query';
+import { createConnectQueryKey, useMutation, useTransport } from '@connectrpc/connect-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,8 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
   const [newMonitorMethod, setNewMonitorMethod] = useState('GET');
 
   const createMonitorMutation = useMutation(MonitorsService.method.createMonitor);
+  const queryClient = useQueryClient();
+  const transport = useTransport();
 
   const createMonitor = async () => {
     setCreating(true);
@@ -42,6 +45,15 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
         timeoutMs: 5000,
         method: newMonitorMethod,
         enabled: true,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: createConnectQueryKey({
+          schema: MonitorsService.method.listMonitors,
+          transport,
+          cardinality: 'finite',
+          input: undefined,
+        }),
       });
 
       setNewMonitorName('');
