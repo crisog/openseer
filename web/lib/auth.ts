@@ -1,11 +1,10 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { Pool } from "pg";
+import { organization } from "better-auth/plugins";
+import { pgPool } from "./db";
 
 export const auth = betterAuth({
-  database: new Pool({
-    connectionString: process.env.DATABASE_URL,
-  }),
+  database: pgPool,
   advanced: {
     cookiePrefix: "openseer",
   },
@@ -13,6 +12,10 @@ export const auth = betterAuth({
     enabled: true,
   },
   plugins: [
-    nextCookies(), 
+    nextCookies(),
+    organization({
+      allowUserToCreateOrganization: true,
+      membershipLimit: 100,
+    }),
   ],
 });
