@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { createConnectQueryKey, useMutation, useTransport } from '@connectrpc/connect-query';
+import React, { useMemo, useState } from 'react';
+import { createConnectQueryKey, useMutation, useQuery, useTransport } from '@connectrpc/connect-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
@@ -16,7 +16,27 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+import { DashboardService } from '@/lib/gen/openseer/v1/dashboard_pb';
 import { MonitorsService } from '@/lib/gen/openseer/v1/monitors_pb';
+
+const normalizeRegion = (value: string): string => value.trim().toLowerCase();
+
+const normalizeRegionList = (values: string[]): string[] => {
+  if (values.length === 0) {
+    return values;
+  }
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const normalized = normalizeRegion(value);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  }
+  return result;
+};
 
 interface CreateMonitorFormProps {
   onClose: () => void;
@@ -28,14 +48,53 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
   const [newMonitorUrl, setNewMonitorUrl] = useState('');
   const [newMonitorInterval, setNewMonitorInterval] = useState('60000');
   const [newMonitorMethod, setNewMonitorMethod] = useState('GET');
+  const [regionScope, setRegionScope] = useState<'any' | 'specific'>('any');
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const [customRegion, setCustomRegion] = useState('');
 
   const createMonitorMutation = useMutation(MonitorsService.method.createMonitor);
   const queryClient = useQueryClient();
   const transport = useTransport();
+  const regionHealthQuery = useQuery(DashboardService.method.getRegionHealth, undefined, {
+    retry: false,
+  });
+
+  const knownRegions = regionHealthQuery.data?.regions ?? [];
+  const regionHealthMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const region of knownRegions) {
+      map.set(normalizeRegion(region.region), Number(region.healthyWorkers ?? 0));
+    }
+    return map;
+  }, [knownRegions]);
+
+  const zeroHealthySelections = useMemo(() => {
+    if (regionScope !== 'specific') {
+      return [];
+    }
+    const normalized = normalizeRegionList(selectedRegions);
+    return normalized.filter((region) => (regionHealthMap.get(region) ?? 0) === 0);
+  }, [regionScope, selectedRegions, regionHealthMap]);
 
   const createMonitor = async () => {
     setCreating(true);
     try {
+      const normalizedRegions = regionScope === 'specific' ? normalizeRegionList(selectedRegions) : [];
+
+      if (regionScope === 'specific' && normalizedRegions.length === 0) {
+        alert('Select at least one region when using specific regions.');
+        return;
+      }
+
+      if (regionScope === 'specific' && zeroHealthySelections.length > 0) {
+        const confirmed = window.confirm(
+          `No healthy workers are currently connected in: ${zeroHealthySelections.join(', ')}. Create monitor anyway?`,
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
       const monitorId = `monitor-${Date.now()}`;
       await createMonitorMutation.mutateAsync({
         id: monitorId,
@@ -45,6 +104,7 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
         timeoutMs: 5000,
         method: newMonitorMethod,
         enabled: true,
+        regions: regionScope === 'specific' ? normalizedRegions : undefined,
       });
 
       await queryClient.invalidateQueries({
@@ -60,6 +120,8 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
       setNewMonitorUrl('');
       setNewMonitorInterval('60000');
       setNewMonitorMethod('GET');
+      setRegionScope('any');
+      setSelectedRegions([]);
       onClose();
     } catch (error) {
       console.error('Error creating monitor:', error);
@@ -68,6 +130,31 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
       setCreating(false);
     }
   };
+
+  const toggleRegion = (region: string) => {
+    const normalized = normalizeRegion(region);
+    if (!normalized) {
+      return;
+    }
+    setSelectedRegions((prev) =>
+      prev.includes(normalized) ? prev.filter((value) => value !== normalized) : [...prev, normalized],
+    );
+  };
+
+  const handleAddCustomRegion = () => {
+    const normalized = normalizeRegion(customRegion);
+    if (!normalized) {
+      return;
+    }
+    setSelectedRegions((prev) => (prev.includes(normalized) ? prev : [...prev, normalized]));
+    setCustomRegion('');
+  };
+
+  const removeRegion = (region: string) => {
+    setSelectedRegions((prev) => prev.filter((value) => value !== region));
+  };
+
+  const selectedRegionSet = useMemo(() => new Set(selectedRegions), [selectedRegions]);
 
   return (
     <div className="space-y-6">
@@ -122,6 +209,123 @@ export function CreateMonitorForm({ onClose }: CreateMonitorFormProps): React.JS
             </Select>
           </div>
         </div>
+
+        <div className="space-y-2">
+          <Label>Region scope</Label>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="regionScope"
+                value="any"
+                checked={regionScope === 'any'}
+                onChange={() => {
+                  setRegionScope('any');
+                  setSelectedRegions([]);
+                  setCustomRegion('');
+                }}
+              />
+              <span>Any region</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="regionScope"
+                value="specific"
+                checked={regionScope === 'specific'}
+                onChange={() => setRegionScope('specific')}
+              />
+              <span>Specific regions</span>
+            </label>
+          </div>
+        </div>
+
+        {regionScope === 'specific' && (
+          <div className="space-y-3 rounded-md border border-border p-4">
+            {regionHealthQuery.isLoading && <p className="text-sm text-muted-foreground">Loading regions…</p>}
+            {regionHealthQuery.isError && (
+              <p className="text-sm text-destructive">
+                Failed to load regions. You can still add custom regions manually.
+              </p>
+            )}
+
+            {knownRegions.length > 0 ? (
+              <div className="space-y-2">
+                {knownRegions.map((region) => {
+                  const normalized = normalizeRegion(region.region);
+                  const healthy = Number(region.healthyWorkers ?? 0);
+                  return (
+                    <label key={region.region} className="flex items-center justify-between rounded-md border border-transparent px-2 py-1 text-sm hover:border-border">
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedRegionSet.has(normalized)}
+                          onChange={() => toggleRegion(region.region)}
+                        />
+                        <span className="font-medium">{region.region}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {healthy === 0
+                          ? 'No healthy workers'
+                          : healthy === 1
+                            ? '1 healthy worker'
+                            : `${healthy} healthy workers`}
+                      </span>
+                  </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No regions discovered yet. Add a region manually to continue.
+              </p>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Input
+                value={customRegion}
+                onChange={(event) => setCustomRegion(event.target.value)}
+                placeholder="Add custom region (e.g. us-west-2)"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleAddCustomRegion();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={handleAddCustomRegion}>
+                Add
+              </Button>
+            </div>
+
+            {selectedRegions.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedRegions.map((region) => (
+                  <span
+                    key={region}
+                    className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium"
+                  >
+                    {region}
+                    <button
+                      type="button"
+                      onClick={() => removeRegion(region)}
+                      className="text-muted-foreground transition hover:text-foreground"
+                      aria-label={`Remove ${region}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {zeroHealthySelections.length > 0 && (
+              <div className="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+                No healthy workers currently available in: {zeroHealthySelections.join(', ')}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end space-x-2 pt-4">

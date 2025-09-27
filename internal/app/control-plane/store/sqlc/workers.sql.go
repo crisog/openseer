@@ -203,7 +203,6 @@ const listRegionHealth = `-- name: ListRegionHealth :many
 WITH region_stats AS (
     SELECT
         region,
-        COUNT(*) AS total_workers,
         COUNT(*) FILTER (
             WHERE status = 'active'
               AND last_seen_at >= NOW() - INTERVAL '1 minute'
@@ -213,8 +212,7 @@ WITH region_stats AS (
 )
 SELECT
     region,
-    healthy_workers,
-    total_workers
+    healthy_workers
 FROM region_stats
 ORDER BY region
 `
@@ -222,7 +220,6 @@ ORDER BY region
 type ListRegionHealthRow struct {
 	Region         string `json:"region"`
 	HealthyWorkers int64  `json:"healthy_workers"`
-	TotalWorkers   int64  `json:"total_workers"`
 }
 
 func (q *Queries) ListRegionHealth(ctx context.Context) ([]*ListRegionHealthRow, error) {
@@ -234,7 +231,7 @@ func (q *Queries) ListRegionHealth(ctx context.Context) ([]*ListRegionHealthRow,
 	var items []*ListRegionHealthRow
 	for rows.Next() {
 		var i ListRegionHealthRow
-		if err := rows.Scan(&i.Region, &i.HealthyWorkers, &i.TotalWorkers); err != nil {
+		if err := rows.Scan(&i.Region, &i.HealthyWorkers); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)

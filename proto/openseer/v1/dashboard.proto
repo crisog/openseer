@@ -28,7 +28,6 @@ message GetRegionHealthResponse {
 message RegionHealth {
   string region = 1;
   int64 healthy_workers = 2;
-  int64 total_workers = 3;
 }
 
 message DashboardOverview {

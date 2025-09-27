@@ -121,7 +121,6 @@ func (s *DashboardService) GetRegionHealth(
 		regions = append(regions, &openseerv1.RegionHealth{
 			Region:         row.Region,
 			HealthyWorkers: row.HealthyWorkers,
-			TotalWorkers:   row.TotalWorkers,
 		})
 	}
 

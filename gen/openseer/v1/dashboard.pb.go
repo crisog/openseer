@@ -186,7 +186,6 @@ type RegionHealth struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Region         string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
 	HealthyWorkers int64                  `protobuf:"varint,2,opt,name=healthy_workers,json=healthyWorkers,proto3" json:"healthy_workers,omitempty"`
-	TotalWorkers   int64                  `protobuf:"varint,3,opt,name=total_workers,json=totalWorkers,proto3" json:"total_workers,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -231,13 +230,6 @@ func (x *RegionHealth) GetRegion() string {
 func (x *RegionHealth) GetHealthyWorkers() int64 {
 	if x != nil {
 		return x.HealthyWorkers
-	}
-	return 0
-}
-
-func (x *RegionHealth) GetTotalWorkers() int64 {
-	if x != nil {
-		return x.TotalWorkers
 	}
 	return 0
 }
@@ -520,11 +512,10 @@ const file_openseer_v1_dashboard_proto_rawDesc = "" +
 	"\boverview\x18\x01 \x01(\v2\x1e.openseer.v1.DashboardOverviewR\boverview\"\x18\n" +
 	"\x16GetRegionHealthRequest\"N\n" +
 	"\x17GetRegionHealthResponse\x123\n" +
-	"\aregions\x18\x01 \x03(\v2\x19.openseer.v1.RegionHealthR\aregions\"t\n" +
+	"\aregions\x18\x01 \x03(\v2\x19.openseer.v1.RegionHealthR\aregions\"O\n" +
 	"\fRegionHealth\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12'\n" +
-	"\x0fhealthy_workers\x18\x02 \x01(\x03R\x0ehealthyWorkers\x12#\n" +
-	"\rtotal_workers\x18\x03 \x01(\x03R\ftotalWorkers\"\xfd\x03\n" +
+	"\x0fhealthy_workers\x18\x02 \x01(\x03R\x0ehealthyWorkers\"\xfd\x03\n" +
 	"\x11DashboardOverview\x12%\n" +
 	"\x0etotal_monitors\x18\x01 \x01(\x03R\rtotalMonitors\x12)\n" +
 	"\x10enabled_monitors\x18\x02 \x01(\x03R\x0fenabledMonitors\x12+\n" +

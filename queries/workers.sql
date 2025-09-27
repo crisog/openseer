@@ -82,7 +82,6 @@ WHERE worker_id = $1;
 WITH region_stats AS (
     SELECT
         region,
-        COUNT(*) AS total_workers,
         COUNT(*) FILTER (
             WHERE status = 'active'
               AND last_seen_at >= NOW() - INTERVAL '1 minute'
@@ -92,7 +91,6 @@ WITH region_stats AS (
 )
 SELECT
     region,
-    healthy_workers,
-    total_workers
+    healthy_workers
 FROM region_stats
 ORDER BY region;
