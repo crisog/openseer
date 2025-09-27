@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useSession } from "@/lib/auth-client"
 import { ArrowLeft, Clock, Globe, Activity, AlertCircle, CheckCircle, XCircle, Loader2, RefreshCw } from "lucide-react"
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -161,17 +160,6 @@ export default function MonitorDetailsPage() {
       metricsQuery.refetch(),
     ])
     setRefreshing(false)
-  }
-
-  const formatChartData = () => {
-    return metrics.map(metric => ({
-      time: new Date(metric.bucket).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      p50: metric.p50_ms,
-      p95: metric.p95_ms,
-      p99: metric.p99_ms,
-      errorRate: metric.error_rate * 100,
-      successRate: (1 - metric.error_rate) * 100,
-    }))
   }
 
   const getStatusIcon = (status: string) => {
