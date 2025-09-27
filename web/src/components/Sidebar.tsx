@@ -9,6 +9,8 @@ import { AUTH_SESSION_QUERY_KEY } from '@/lib/auth/queries';
 
 import { useSidebar } from './MainLayout';
 
+const CONNECT_QUERY_KEY = ['connect-query'] as const;
+
 export type DashboardTab = 'monitors' | 'incidents' | 'analytics' | 'billing';
 
 const navigationItems = [
@@ -102,14 +104,14 @@ export function Sidebar(): React.JSX.Element {
     } catch (error) {
       console.error('Failed to sign out:', error);
       queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ['connect-query'] });
+      queryClient.invalidateQueries({ queryKey: CONNECT_QUERY_KEY });
       router.navigate({ to: '/' });
       setIsLoggingOut(false);
       return;
     }
 
     queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
-    queryClient.invalidateQueries({ queryKey: ['connect-query'] });
+    queryClient.invalidateQueries({ queryKey: CONNECT_QUERY_KEY });
   };
 
   useEffect(() => {
