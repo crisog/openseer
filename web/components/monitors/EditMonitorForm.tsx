@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@connectrpc/connect-query';
+import { createConnectQueryKey, useMutation, useTransport } from '@connectrpc/connect-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,8 @@ export function EditMonitorForm({ monitor, onSuccess, onCancel }: EditMonitorFor
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateMonitorMutation = useMutation(MonitorsService.method.updateMonitor);
+  const queryClient = useQueryClient();
+  const transport = useTransport();
 
   const form = useForm<MonitorFormData>({
     resolver: zodResolver(monitorFormSchema),
@@ -77,6 +80,26 @@ export function EditMonitorForm({ monitor, onSuccess, onCancel }: EditMonitorFor
         timeoutMs: data.timeoutMs,
         enabled: data.enabled,
       });
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: createConnectQueryKey({
+            schema: MonitorsService.method.listMonitors,
+            transport,
+            cardinality: 'finite',
+            input: undefined,
+          }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: createConnectQueryKey({
+            schema: MonitorsService.method.getMonitor,
+            transport,
+            cardinality: 'finite',
+            input: { id: monitor.id },
+          }),
+        }),
+      ]);
+
       onSuccess?.();
     } catch (error) {
       console.error('Failed to update monitor:', error);

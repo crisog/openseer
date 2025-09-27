@@ -3,8 +3,8 @@
 import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { Monitor, Plus, RefreshCw } from 'lucide-react';
-import { useQuery, useMutation } from '@connectrpc/connect-query';
-import { useRouter } from 'next/navigation';
+import { createConnectQueryKey, useMutation, useQuery, useTransport } from '@connectrpc/connect-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -17,10 +17,11 @@ import { MonitorsService } from '@/lib/gen/openseer/v1/monitors_pb';
 import type { Monitor as PbMonitor } from '@/lib/gen/openseer/v1/monitors_pb';
 
 export function MonitorsList(): React.JSX.Element {
-  const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deletingMonitors, setDeletingMonitors] = useState<Set<string>>(new Set());
   const { refreshInterval, setRefreshInterval, triggerRefresh, isRefreshing } = useRefresh();
+  const queryClient = useQueryClient();
+  const transport = useTransport();
 
   const listMonitorsQuery = useQuery(
     MonitorsService.method.listMonitors,
@@ -30,19 +31,30 @@ export function MonitorsList(): React.JSX.Element {
 
   const deleteMonitorMutation = useMutation(MonitorsService.method.deleteMonitor);
 
+  const invalidateMonitorsList = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: createConnectQueryKey({
+        schema: MonitorsService.method.listMonitors,
+        transport,
+        cardinality: 'finite',
+        input: undefined,
+      }),
+    });
+  }, [queryClient, transport]);
+
   const monitors = (listMonitorsQuery.data?.monitors ?? []) as PbMonitor[];
   const isLoading = listMonitorsQuery.isPending;
 
   const handleRefresh = useCallback(async () => {
     triggerRefresh();
-    await listMonitorsQuery.refetch();
-  }, [listMonitorsQuery, triggerRefresh]);
+    await invalidateMonitorsList();
+  }, [invalidateMonitorsList, triggerRefresh]);
 
   const handleDelete = useCallback(async (id: string) => {
     setDeletingMonitors(prev => new Set(prev).add(id));
     try {
       await deleteMonitorMutation.mutateAsync({ id });
-      await listMonitorsQuery.refetch();
+      await invalidateMonitorsList();
     } catch (error) {
       console.error('Failed to delete monitor:', error);
     } finally {
@@ -52,7 +64,7 @@ export function MonitorsList(): React.JSX.Element {
         return newSet;
       });
     }
-  }, [deleteMonitorMutation, listMonitorsQuery]);
+  }, [deleteMonitorMutation, invalidateMonitorsList]);
 
   useEffect(() => {
     if (refreshInterval === null) return;

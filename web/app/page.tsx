@@ -3,8 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, signUp, useSession } from "@/lib/auth-client";
-import { useMutation } from "@connectrpc/connect-query";
-import { UserService } from "@/lib/gen/openseer/v1/user_pb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,7 +20,6 @@ export default function SignInPage() {
   
   const router = useRouter();
   const session = useSession();
-  const fetchUserProfile = useMutation(UserService.method.getUserProfile);
 
   useEffect(() => {
     if (session.data) {
@@ -73,8 +70,8 @@ export default function SignInPage() {
     }
   };
 
-  const isLoading = isAuthenticating || fetchUserProfile.isPending || session.isPending;
-  const currentError = authError || fetchUserProfile.error?.message;
+  const isLoading = isAuthenticating || session.isPending;
+  const currentError = authError;
 
   if (session.isPending || session.data) {
     return (
@@ -201,10 +198,8 @@ export default function SignInPage() {
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isAuthenticating
-                  ? (isSignUp ? "Creating account..." : "Signing in...") 
-                  : fetchUserProfile.isPending 
-                    ? "Loading profile..."
-                    : (isSignUp ? "Create Account" : "Sign In")
+                  ? (isSignUp ? "Creating account..." : "Signing in...")
+                  : (isSignUp ? "Create Account" : "Sign In")
                 }
               </Button>
 

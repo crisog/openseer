@@ -1,4 +1,5 @@
 import { createClient } from "@connectrpc/connect";
+import { addStaticKeyToTransport } from "@connectrpc/connect-query";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { UserService } from "@/lib/gen/openseer/v1/user_pb";
 import { ChecksService } from "@/lib/gen/openseer/v1/checks_pb";
@@ -7,10 +8,13 @@ import { EnrollmentService } from "@/lib/gen/openseer/v1/enrollment_pb";
 import { HealthService } from "@/lib/gen/openseer/v1/health_pb";
 import { MonitorsService } from "@/lib/gen/openseer/v1/monitors_pb";
 
-export const transport = createConnectTransport({
-  baseUrl: "/api/rpc",
-  fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
-});
+export const transport = addStaticKeyToTransport(
+  createConnectTransport({
+    baseUrl: "/api/rpc",
+    fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
+  }),
+  "browser",
+);
 
 export const userClient = createClient(UserService, transport);
 export const checksClient = createClient(ChecksService, transport);
