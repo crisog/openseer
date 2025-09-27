@@ -1,9 +1,10 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useRouter, useRouterState } from '@tanstack/react-router';
 import { AlertTriangle, Monitor, Settings, BarChart3, HelpCircle, LogOut } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Separator } from '@/components/ui/separator';
-import { signOut } from '@/lib/auth-client';
+import { signOut, useSession } from '@/lib/auth-client';
 
 import { useSidebar } from './MainLayout';
 
@@ -24,9 +25,12 @@ export function Sidebar(): React.JSX.Element {
   const routerState = useRouterState();
   const pathname = routerState.location.pathname;
   const { isOpen, close } = useSidebar();
+  const queryClient = useQueryClient();
+  const session = useSession();
   const sidebarRef = useRef<HTMLElement>(null);
   const startXRef = useRef<number>(0);
   const currentXRef = useRef<number>(0);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleTouchStart = (e: React.TouchEvent): void => {
     startXRef.current = e.touches[0].clientX;
@@ -82,14 +86,42 @@ export function Sidebar(): React.JSX.Element {
   };
 
   const handleLogout = async (): Promise<void> => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    close();
+
     try {
       await signOut();
-      router.navigate({ to: '/' });
+      session.refetch({
+        query: {
+          disableCookieCache: true,
+        },
+      });
     } catch (error) {
       console.error('Failed to sign out:', error);
+      queryClient.invalidateQueries({ queryKey: ['connect-query'] });
       router.navigate({ to: '/' });
+      setIsLoggingOut(false);
+      return;
     }
+
+    queryClient.invalidateQueries({ queryKey: ['connect-query'] });
   };
+
+  useEffect(() => {
+    if (!isLoggingOut) return;
+
+    if (session.isPending) {
+      return;
+    }
+
+    if (!session.data) {
+      router.navigate({ to: '/' });
+      setIsLoggingOut(false);
+      return;
+    }
+  }, [isLoggingOut, session.data, session.isPending, router]);
 
   const renderNavItem = (
     item: {

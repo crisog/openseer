@@ -27,10 +27,11 @@ function Home() {
   const fetchUserProfile = useMutation(UserService.method.getUserProfile);
 
   useEffect(() => {
-    if (session.data) {
-      router.navigate({ to: "/dashboard" });
-    }
-  }, [session.data, router]);
+    if (!session.data) return;
+    if (session.isPending) return;
+
+    router.navigate({ to: "/dashboard" });
+  }, [session.data, session.isPending, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

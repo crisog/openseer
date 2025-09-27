@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Monitor, Plus, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation } from '@connectrpc/connect-query';
 import { useRouter } from "@tanstack/react-router";
+import { useSession } from '@/lib/auth-client';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -16,15 +17,19 @@ import { MonitorsService } from '@/lib/gen/openseer/v1/monitors_pb';
 import type { Monitor as PbMonitor } from '@/lib/gen/openseer/v1/monitors_pb';
 
 export function MonitorsList(): React.JSX.Element {
-  const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deletingMonitors, setDeletingMonitors] = useState<Set<string>>(new Set());
   const { refreshInterval, setRefreshInterval, triggerRefresh, isRefreshing } = useRefresh();
 
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
   const listMonitorsQuery = useQuery(
     MonitorsService.method.listMonitors,
     undefined,
-    { enabled: true }
+    {
+      enabled: !!userId,
+    }
   );
 
   const deleteMonitorMutation = useMutation(MonitorsService.method.deleteMonitor);
