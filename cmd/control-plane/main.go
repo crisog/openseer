@@ -107,8 +107,9 @@ func main() {
 	streamHealthInterval := getEnvDuration("STREAM_HEALTH_INTERVAL", 15*time.Second)
 	workerInactivityInterval := getEnvDuration("WORKER_INACTIVITY_INTERVAL", 30*time.Second)
 	schedulerInterval := getEnvDuration("SCHEDULER_POLL_INTERVAL", time.Second)
+	jobLeaseDuration := getEnvDuration("JOB_LEASE_DURATION", 45*time.Second)
 
-	disp := controlplane.New(queries, sqlDB, 30*time.Second, leaseReaperInterval, streamHealthInterval, workerInactivityInterval)
+	disp := controlplane.New(queries, sqlDB, jobLeaseDuration, leaseReaperInterval, streamHealthInterval, workerInactivityInterval)
 	ing := metrics.New(queries)
 	scheduler := controlplane.NewScheduler(queries, sqlDB, schedulerInterval)
 

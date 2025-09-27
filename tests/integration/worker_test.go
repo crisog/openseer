@@ -1134,6 +1134,10 @@ func TestWorkerJobLeaseExpirationAndReclaim(t *testing.T) {
 		WorkerID: sql.NullString{String: "crashed-worker", Valid: true},
 		Limit:    1,
 		Region:   "us-east-1",
+		LeaseExpiresAt: sql.NullTime{
+			Time:  time.Now().Add(env.Dispatcher.LeaseDuration()),
+			Valid: true,
+		},
 	})
 	require.NoError(t, err)
 

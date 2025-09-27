@@ -324,7 +324,7 @@ WITH leased_jobs AS (
     UPDATE app.jobs
     SET
         status = 'leased',
-        lease_expires_at = NOW() + INTERVAL '45 seconds',
+        lease_expires_at = $4,
         worker_id = $1
     WHERE run_id IN (
         SELECT run_id
@@ -343,9 +343,10 @@ SELECT run_id, monitor_id, region, status, scheduled_at, lease_expires_at, worke
 `
 
 type LeaseJobsParams struct {
-	WorkerID sql.NullString `json:"worker_id"`
-	Limit    int32          `json:"limit"`
-	Region   string         `json:"region"`
+	WorkerID       sql.NullString `json:"worker_id"`
+	Limit          int32          `json:"limit"`
+	Region         string         `json:"region"`
+	LeaseExpiresAt sql.NullTime   `json:"lease_expires_at"`
 }
 
 type LeaseJobsRow struct {
@@ -361,7 +362,12 @@ type LeaseJobsRow struct {
 }
 
 func (q *Queries) LeaseJobs(ctx context.Context, arg *LeaseJobsParams) ([]*LeaseJobsRow, error) {
-	rows, err := q.db.QueryContext(ctx, leaseJobs, arg.WorkerID, arg.Limit, arg.Region)
+	rows, err := q.db.QueryContext(ctx, leaseJobs,
+		arg.WorkerID,
+		arg.Limit,
+		arg.Region,
+		arg.LeaseExpiresAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +404,7 @@ WITH leased_jobs AS (
     UPDATE app.jobs
     SET
         status = 'leased',
-        lease_expires_at = NOW() + INTERVAL '45 seconds',
+        lease_expires_at = $4,
         worker_id = $1
     WHERE run_id IN (
         SELECT run_id
@@ -419,9 +425,10 @@ SELECT run_id, monitor_id, region, status, scheduled_at, lease_expires_at, worke
 `
 
 type LeaseJobsWithFallbackParams struct {
-	WorkerID sql.NullString `json:"worker_id"`
-	Limit    int32          `json:"limit"`
-	Region   string         `json:"region"`
+	WorkerID       sql.NullString `json:"worker_id"`
+	Limit          int32          `json:"limit"`
+	Region         string         `json:"region"`
+	LeaseExpiresAt sql.NullTime   `json:"lease_expires_at"`
 }
 
 type LeaseJobsWithFallbackRow struct {
@@ -437,7 +444,12 @@ type LeaseJobsWithFallbackRow struct {
 }
 
 func (q *Queries) LeaseJobsWithFallback(ctx context.Context, arg *LeaseJobsWithFallbackParams) ([]*LeaseJobsWithFallbackRow, error) {
-	rows, err := q.db.QueryContext(ctx, leaseJobsWithFallback, arg.WorkerID, arg.Limit, arg.Region)
+	rows, err := q.db.QueryContext(ctx, leaseJobsWithFallback,
+		arg.WorkerID,
+		arg.Limit,
+		arg.Region,
+		arg.LeaseExpiresAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +486,7 @@ WITH leased_jobs AS (
     UPDATE app.jobs
     SET
         status = 'leased',
-        lease_expires_at = NOW() + INTERVAL '45 seconds',
+        lease_expires_at = $4,
         worker_id = $1
     WHERE run_id IN (
         SELECT run_id
@@ -514,9 +526,10 @@ WHERE m.deleted_at IS NULL
 `
 
 type LeaseJobsWithMonitorDataParams struct {
-	WorkerID sql.NullString `json:"worker_id"`
-	Limit    int32          `json:"limit"`
-	Region   string         `json:"region"`
+	WorkerID       sql.NullString `json:"worker_id"`
+	Limit          int32          `json:"limit"`
+	Region         string         `json:"region"`
+	LeaseExpiresAt sql.NullTime   `json:"lease_expires_at"`
 }
 
 type LeaseJobsWithMonitorDataRow struct {
@@ -540,7 +553,12 @@ type LeaseJobsWithMonitorDataRow struct {
 
 // Lease jobs with monitor data
 func (q *Queries) LeaseJobsWithMonitorData(ctx context.Context, arg *LeaseJobsWithMonitorDataParams) ([]*LeaseJobsWithMonitorDataRow, error) {
-	rows, err := q.db.QueryContext(ctx, leaseJobsWithMonitorData, arg.WorkerID, arg.Limit, arg.Region)
+	rows, err := q.db.QueryContext(ctx, leaseJobsWithMonitorData,
+		arg.WorkerID,
+		arg.Limit,
+		arg.Region,
+		arg.LeaseExpiresAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -597,7 +615,7 @@ func (q *Queries) ReclaimExpiredLeases(ctx context.Context) error {
 
 const renewLease = `-- name: RenewLease :one
 UPDATE app.jobs
-SET lease_expires_at = NOW() + INTERVAL '45 seconds'
+SET lease_expires_at = $3
 WHERE run_id = $1 
 AND status = 'leased'
 AND worker_id = $2
@@ -605,12 +623,13 @@ RETURNING run_id, monitor_id, region, status, scheduled_at, lease_expires_at, wo
 `
 
 type RenewLeaseParams struct {
-	RunID    string         `json:"run_id"`
-	WorkerID sql.NullString `json:"worker_id"`
+	RunID          string         `json:"run_id"`
+	WorkerID       sql.NullString `json:"worker_id"`
+	LeaseExpiresAt sql.NullTime   `json:"lease_expires_at"`
 }
 
 func (q *Queries) RenewLease(ctx context.Context, arg *RenewLeaseParams) (*AppJob, error) {
-	row := q.db.QueryRowContext(ctx, renewLease, arg.RunID, arg.WorkerID)
+	row := q.db.QueryRowContext(ctx, renewLease, arg.RunID, arg.WorkerID, arg.LeaseExpiresAt)
 	var i AppJob
 	err := row.Scan(
 		&i.RunID,

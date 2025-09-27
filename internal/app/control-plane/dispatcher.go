@@ -20,7 +20,7 @@ type Dispatcher struct {
 	db                       *sql.DB
 	mu                       sync.RWMutex
 	workers                  map[string]*WorkerInfo
-	leaseTimeout             time.Duration
+	leaseDuration            time.Duration
 	leaseReaperInterval      time.Duration
 	streamHealthInterval     time.Duration
 	workerInactivityInterval time.Duration
@@ -39,7 +39,7 @@ type WorkerInfo struct {
 	PendingPings int
 }
 
-func New(queries *sqlc.Queries, db *sql.DB, leaseTimeout, leaseReaperInterval, streamHealthInterval, workerInactivityInterval time.Duration) *Dispatcher {
+func New(queries *sqlc.Queries, db *sql.DB, leaseDuration, leaseReaperInterval, streamHealthInterval, workerInactivityInterval time.Duration) *Dispatcher {
 	if leaseReaperInterval <= 0 {
 		leaseReaperInterval = 5 * time.Second
 	}
@@ -53,7 +53,7 @@ func New(queries *sqlc.Queries, db *sql.DB, leaseTimeout, leaseReaperInterval, s
 		queries:                  queries,
 		db:                       db,
 		workers:                  make(map[string]*WorkerInfo),
-		leaseTimeout:             leaseTimeout,
+		leaseDuration:            leaseDuration,
 		leaseReaperInterval:      leaseReaperInterval,
 		streamHealthInterval:     streamHealthInterval,
 		workerInactivityInterval: workerInactivityInterval,
@@ -74,6 +74,10 @@ func (d *Dispatcher) RegisterWorker(workerID, region string, stream WorkerStream
 	}
 
 	log.Printf("Worker %s registered from region %s", workerID, region)
+}
+
+func (d *Dispatcher) LeaseDuration() time.Duration {
+	return d.leaseDuration
 }
 
 func (d *Dispatcher) UnregisterWorker(workerID string) {
@@ -113,10 +117,20 @@ func (d *Dispatcher) LeaseJobs(ctx context.Context, workerID string, maxJobs int
 	workerRegion = worker.Region
 	d.mu.Unlock()
 
+	leaseDuration := d.leaseDuration
+	if leaseDuration <= 0 {
+		leaseDuration = 45 * time.Second
+	}
+	leaseExpiresAt := time.Now().Add(leaseDuration)
+
 	jobsWithMonitors, err := d.queries.LeaseJobsWithMonitorData(ctx, &sqlc.LeaseJobsWithMonitorDataParams{
 		WorkerID: sql.NullString{String: workerID, Valid: true},
 		Limit:    maxJobs,
 		Region:   workerRegion,
+		LeaseExpiresAt: sql.NullTime{
+			Time:  leaseExpiresAt,
+			Valid: true,
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to lease jobs: %w", err)

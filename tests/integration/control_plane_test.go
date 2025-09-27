@@ -1453,6 +1453,10 @@ func TestMonitorSoftDeletes(t *testing.T) {
 		WorkerID: sql.NullString{String: worker.ID, Valid: true},
 		Limit:    1,
 		Region:   "us-east-1",
+		LeaseExpiresAt: sql.NullTime{
+			Time:  time.Now().Add(env.Dispatcher.LeaseDuration()),
+			Valid: true,
+		},
 	})
 	require.NoError(t, err)
 	require.Len(t, leasedJobs, 0, "soft deleted jobs should not be leasable")
@@ -1484,6 +1488,10 @@ func TestLeaseReaperBatchReclaim(t *testing.T) {
 		WorkerID: sql.NullString{String: worker.ID, Valid: true},
 		Limit:    int32(len(jobs)),
 		Region:   "us-east-1",
+		LeaseExpiresAt: sql.NullTime{
+			Time:  time.Now().Add(env.Dispatcher.LeaseDuration()),
+			Valid: true,
+		},
 	})
 	require.NoError(t, err)
 	require.Len(t, leasedJobs, len(jobs))

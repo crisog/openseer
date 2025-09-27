@@ -26,7 +26,7 @@ WITH leased_jobs AS (
     UPDATE app.jobs
     SET
         status = 'leased',
-        lease_expires_at = NOW() + INTERVAL '45 seconds',
+        lease_expires_at = $4,
         worker_id = $1
     WHERE run_id IN (
         SELECT run_id
@@ -48,7 +48,7 @@ WITH leased_jobs AS (
     UPDATE app.jobs
     SET
         status = 'leased',
-        lease_expires_at = NOW() + INTERVAL '45 seconds',
+        lease_expires_at = $4,
         worker_id = $1
     WHERE run_id IN (
         SELECT run_id
@@ -69,7 +69,7 @@ SELECT * FROM leased_jobs;
 
 -- name: RenewLease :one
 UPDATE app.jobs
-SET lease_expires_at = NOW() + INTERVAL '45 seconds'
+SET lease_expires_at = $3
 WHERE run_id = $1 
 AND status = 'leased'
 AND worker_id = $2
@@ -121,7 +121,7 @@ WITH leased_jobs AS (
     UPDATE app.jobs
     SET
         status = 'leased',
-        lease_expires_at = NOW() + INTERVAL '45 seconds',
+        lease_expires_at = $4,
         worker_id = $1
     WHERE run_id IN (
         SELECT run_id

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	openseerv1 "github.com/crisog/openseer/gen/openseer/v1"
@@ -219,9 +220,19 @@ func (s *WorkerService) handleResult(ctx context.Context, workerID string, strea
 }
 
 func (s *WorkerService) handleLeaseRenewal(ctx context.Context, workerID string, req *openseerv1.LeaseRenewal) error {
+	leaseDuration := s.dispatcher.LeaseDuration()
+	if leaseDuration <= 0 {
+		leaseDuration = 45 * time.Second
+	}
+	leaseExpiresAt := time.Now().Add(leaseDuration)
+
 	_, err := s.queries.RenewLease(ctx, &sqlc.RenewLeaseParams{
 		RunID:    req.RunId,
 		WorkerID: sql.NullString{String: workerID, Valid: true},
+		LeaseExpiresAt: sql.NullTime{
+			Time:  leaseExpiresAt,
+			Valid: true,
+		},
 	})
 	if err != nil {
 		s.logger.Error("Failed to renew lease",
