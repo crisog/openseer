@@ -37,7 +37,7 @@ export function MainLayout({ children }: MainLayoutProps): React.JSX.Element {
 
   return (
     <SidebarContext.Provider value={sidebarContext}>
-      <div className="min-h-screen bg-background text-foreground flex">
+      <div className="min-h-screen bg-background text-foreground flex overflow-x-hidden">
         <Sidebar />
 
         {/* Mobile hamburger menu button */}
@@ -52,7 +52,7 @@ export function MainLayout({ children }: MainLayoutProps): React.JSX.Element {
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="flex-1 transition-all duration-300 ease-in-out lg:ml-56 pt-4 lg:pt-0">
+        <div className="flex-1 transition-all duration-300 ease-in-out lg:ml-56 pt-4 lg:pt-0 min-w-0">
           <motion.div
             initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
