@@ -79,7 +79,7 @@ func SetupControlPlane(t *testing.T) *ControlPlaneTestEnvironment {
 	require.NoError(t, err)
 	authService.StartCleanupWorker()
 
-	dispatcher := controlplane.New(testDB.Queries, testDB.DB, 45*time.Second, 1*time.Second, 1*time.Second, 1*time.Second)
+	dispatcher := controlplane.New(testDB.Queries, testDB.DB, 10*time.Second, 1*time.Second, 1*time.Second, 1*time.Second)
 	ingest := metrics.New(testDB.Queries)
 	scheduler := controlplane.NewScheduler(testDB.Queries, testDB.DB, 200*time.Millisecond)
 
@@ -141,7 +141,7 @@ func SetupControlPlaneWithDB(t *testing.T, sharedDB *sql.DB) *ControlPlaneTestEn
 	authService.StartCleanupWorker()
 
 	queries := sqlc.New(sharedDB)
-	dispatcher := controlplane.New(queries, sharedDB, 45*time.Second, 1*time.Second, 1*time.Second, 1*time.Second)
+	dispatcher := controlplane.New(queries, sharedDB, 10*time.Second, 1*time.Second, 1*time.Second, 1*time.Second)
 	ingest := metrics.New(queries)
 	scheduler := controlplane.NewScheduler(queries, sharedDB, 200*time.Millisecond)
 
