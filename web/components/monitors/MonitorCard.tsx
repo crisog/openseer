@@ -1,13 +1,14 @@
 'use client';
 
 import React from 'react';
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { useRouter } from 'next/navigation';
 import { Pause, Play, Trash2, TrendingUp, BarChart3, Settings, Activity, Clock } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DeleteMonitorModal } from './DeleteMonitorModal';
 
 interface MonitorCardProps {
   monitor: {
@@ -37,10 +38,20 @@ function MonitorCardInner({
   uptimePercentage
 }: MonitorCardProps): React.JSX.Element {
   const router = useRouter();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const intervalSeconds = Math.round(monitor.intervalMs / 1000);
-  
+
   const handleViewDetails = () => {
     router.push(`/dashboard?id=${monitor.id}`);
+  };
+
+  const handleDeleteClick = () => {
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    onDelete(monitor.id);
+    setDeleteModalOpen(false);
   };
 
   return (
@@ -133,7 +144,7 @@ function MonitorCardInner({
           <Button
             size="sm"
             variant="destructive"
-            onClick={() => onDelete(monitor.id)}
+            onClick={handleDeleteClick}
             disabled={isDeleting}
             className="shrink-0 h-7 w-7 p-0"
           >
@@ -141,6 +152,14 @@ function MonitorCardInner({
           </Button>
         </div>
       </CardContent>
+
+      <DeleteMonitorModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        onConfirm={handleDeleteConfirm}
+        monitorName={monitor.name}
+        isDeleting={isDeleting}
+      />
     </Card>
   );
 }
