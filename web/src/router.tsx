@@ -9,7 +9,7 @@ import type { AuthQueryResult } from '@/lib/auth/queries'
 
 interface RouterContext {
   queryClient: QueryClient
-  user: AuthQueryResult | null
+  user: AuthQueryResult
 }
 
 export function getRouter() {

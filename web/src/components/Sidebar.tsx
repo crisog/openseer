@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { Separator } from '@/components/ui/separator';
 import { signOut, useSession } from '@/lib/auth-client';
+import { AUTH_SESSION_QUERY_KEY } from '@/lib/auth/queries';
 
 import { useSidebar } from './MainLayout';
 
@@ -100,12 +101,14 @@ export function Sidebar(): React.JSX.Element {
       });
     } catch (error) {
       console.error('Failed to sign out:', error);
+      queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['connect-query'] });
       router.navigate({ to: '/' });
       setIsLoggingOut(false);
       return;
     }
 
+    queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
     queryClient.invalidateQueries({ queryKey: ['connect-query'] });
   };
 
@@ -118,9 +121,9 @@ export function Sidebar(): React.JSX.Element {
 
     if (!session.data) {
       router.navigate({ to: '/' });
-      setIsLoggingOut(false);
-      return;
     }
+
+    setIsLoggingOut(false);
   }, [isLoggingOut, session.data, session.isPending, router]);
 
   const renderNavItem = (

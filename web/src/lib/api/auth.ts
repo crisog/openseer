@@ -1,4 +1,5 @@
 import authClient from "@/lib/auth-client";
+import type { AuthQueryResult } from "@/lib/auth/queries";
 import { userClient } from "@/lib/api/connect-client";
 import { create } from "@bufbuild/protobuf";
 import { GetUserProfileRequestSchema } from "@/lib/gen/openseer/v1/user_pb";
@@ -48,9 +49,9 @@ export const authApi = {
     return data;
   },
 
-  getSession: async () => {
-    const session = await authClient.getSession();
-    return session.data;
+  getSession: async (): Promise<AuthQueryResult> => {
+    const { data } = await authClient.getSession();
+    return data ?? null;
   },
 
   fetchUserProfile: async (): Promise<UserProfile> => {

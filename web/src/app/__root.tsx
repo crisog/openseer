@@ -20,7 +20,7 @@ const siteConfig = {
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
-  user: AuthQueryResult | null;
+  user: AuthQueryResult;
 }>()({
   beforeLoad: async ({ context }) => {
     try {

@@ -1,13 +1,15 @@
 import { queryOptions } from '@tanstack/react-query'
 import { getSession } from '@/lib/auth-client'
 
+export const AUTH_SESSION_QUERY_KEY = ['auth', 'session'] as const
+
 export const authQueryOptions = () =>
   queryOptions({
-    queryKey: ['auth', 'session'],
+    queryKey: AUTH_SESSION_QUERY_KEY,
     queryFn: async () => {
       try {
-        const session = await getSession()
-        return session
+        const { data } = await getSession()
+        return data ?? null
       } catch (error) {
         console.warn('Failed to get session:', error)
         return null
@@ -23,4 +25,4 @@ export const authQueryOptions = () =>
     },
   })
 
-export type AuthQueryResult = Awaited<ReturnType<typeof getSession>>
+export type AuthQueryResult = Awaited<ReturnType<typeof getSession>>['data']
