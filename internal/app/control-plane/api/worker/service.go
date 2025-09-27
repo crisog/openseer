@@ -13,6 +13,7 @@ import (
 	workermetrics "github.com/crisog/openseer/internal/app/control-plane/metrics"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
 	"github.com/crisog/openseer/internal/pkg/auth"
+	"github.com/crisog/openseer/internal/pkg/regions"
 	"go.uber.org/zap"
 )
 
@@ -110,20 +111,28 @@ func (s *WorkerService) handleRegister(ctx context.Context, workerID string, str
 		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("worker enrollment revoked"))
 	}
 
+	normalizedRegion := regions.Normalize(req.Region)
+	if normalizedRegion != worker.Region {
+		s.logger.Info("Worker region updated",
+			zap.String("worker_id", workerID),
+			zap.String("previous_region", worker.Region),
+			zap.String("new_region", normalizedRegion))
+	}
+
 	if _, err := s.queries.RegisterWorker(ctx, &sqlc.RegisterWorkerParams{
 		ID:      workerID,
-		Region:  req.Region,
+		Region:  normalizedRegion,
 		Version: req.WorkerVersion,
 	}); err != nil {
 		s.logger.Error("Failed to mark worker active", zap.String("worker_id", workerID), zap.Error(err))
 	}
 
 	s.dispatcher.UnregisterWorker(workerID)
-	s.dispatcher.RegisterWorker(workerID, req.Region, stream)
+	s.dispatcher.RegisterWorker(workerID, normalizedRegion, stream)
 
 	s.logger.Info("Worker registered via Connect",
 		zap.String("worker_id", workerID),
-		zap.String("region", req.Region),
+		zap.String("region", normalizedRegion),
 		zap.String("version", req.WorkerVersion))
 
 	return stream.Send(&openseerv1.ServerMessage{

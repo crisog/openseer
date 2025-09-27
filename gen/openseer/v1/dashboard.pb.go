@@ -102,6 +102,146 @@ func (x *GetDashboardOverviewResponse) GetOverview() *DashboardOverview {
 	return nil
 }
 
+type GetRegionHealthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRegionHealthRequest) Reset() {
+	*x = GetRegionHealthRequest{}
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRegionHealthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRegionHealthRequest) ProtoMessage() {}
+
+func (x *GetRegionHealthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRegionHealthRequest.ProtoReflect.Descriptor instead.
+func (*GetRegionHealthRequest) Descriptor() ([]byte, []int) {
+	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{2}
+}
+
+type GetRegionHealthResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Regions       []*RegionHealth        `protobuf:"bytes,1,rep,name=regions,proto3" json:"regions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRegionHealthResponse) Reset() {
+	*x = GetRegionHealthResponse{}
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRegionHealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRegionHealthResponse) ProtoMessage() {}
+
+func (x *GetRegionHealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRegionHealthResponse.ProtoReflect.Descriptor instead.
+func (*GetRegionHealthResponse) Descriptor() ([]byte, []int) {
+	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetRegionHealthResponse) GetRegions() []*RegionHealth {
+	if x != nil {
+		return x.Regions
+	}
+	return nil
+}
+
+type RegionHealth struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Region         string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
+	HealthyWorkers int64                  `protobuf:"varint,2,opt,name=healthy_workers,json=healthyWorkers,proto3" json:"healthy_workers,omitempty"`
+	TotalWorkers   int64                  `protobuf:"varint,3,opt,name=total_workers,json=totalWorkers,proto3" json:"total_workers,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RegionHealth) Reset() {
+	*x = RegionHealth{}
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegionHealth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegionHealth) ProtoMessage() {}
+
+func (x *RegionHealth) ProtoReflect() protoreflect.Message {
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegionHealth.ProtoReflect.Descriptor instead.
+func (*RegionHealth) Descriptor() ([]byte, []int) {
+	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RegionHealth) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *RegionHealth) GetHealthyWorkers() int64 {
+	if x != nil {
+		return x.HealthyWorkers
+	}
+	return 0
+}
+
+func (x *RegionHealth) GetTotalWorkers() int64 {
+	if x != nil {
+		return x.TotalWorkers
+	}
+	return 0
+}
+
 type DashboardOverview struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	TotalMonitors      int64                  `protobuf:"varint,1,opt,name=total_monitors,json=totalMonitors,proto3" json:"total_monitors,omitempty"`
@@ -120,7 +260,7 @@ type DashboardOverview struct {
 
 func (x *DashboardOverview) Reset() {
 	*x = DashboardOverview{}
-	mi := &file_openseer_v1_dashboard_proto_msgTypes[2]
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -132,7 +272,7 @@ func (x *DashboardOverview) String() string {
 func (*DashboardOverview) ProtoMessage() {}
 
 func (x *DashboardOverview) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_dashboard_proto_msgTypes[2]
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -145,7 +285,7 @@ func (x *DashboardOverview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DashboardOverview.ProtoReflect.Descriptor instead.
 func (*DashboardOverview) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{2}
+	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DashboardOverview) GetTotalMonitors() int64 {
@@ -231,7 +371,7 @@ type MonitorStatus struct {
 
 func (x *MonitorStatus) Reset() {
 	*x = MonitorStatus{}
-	mi := &file_openseer_v1_dashboard_proto_msgTypes[3]
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -243,7 +383,7 @@ func (x *MonitorStatus) String() string {
 func (*MonitorStatus) ProtoMessage() {}
 
 func (x *MonitorStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_dashboard_proto_msgTypes[3]
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -256,7 +396,7 @@ func (x *MonitorStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MonitorStatus.ProtoReflect.Descriptor instead.
 func (*MonitorStatus) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{3}
+	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *MonitorStatus) GetMonitorId() string {
@@ -307,7 +447,7 @@ type MonitorPerformance struct {
 
 func (x *MonitorPerformance) Reset() {
 	*x = MonitorPerformance{}
-	mi := &file_openseer_v1_dashboard_proto_msgTypes[4]
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +459,7 @@ func (x *MonitorPerformance) String() string {
 func (*MonitorPerformance) ProtoMessage() {}
 
 func (x *MonitorPerformance) ProtoReflect() protoreflect.Message {
-	mi := &file_openseer_v1_dashboard_proto_msgTypes[4]
+	mi := &file_openseer_v1_dashboard_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +472,7 @@ func (x *MonitorPerformance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MonitorPerformance.ProtoReflect.Descriptor instead.
 func (*MonitorPerformance) Descriptor() ([]byte, []int) {
-	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{4}
+	return file_openseer_v1_dashboard_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *MonitorPerformance) GetMonitorId() string {
@@ -377,7 +517,14 @@ const file_openseer_v1_dashboard_proto_rawDesc = "" +
 	"\x1bopenseer/v1/dashboard.proto\x12\vopenseer.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x1d\n" +
 	"\x1bGetDashboardOverviewRequest\"Z\n" +
 	"\x1cGetDashboardOverviewResponse\x12:\n" +
-	"\boverview\x18\x01 \x01(\v2\x1e.openseer.v1.DashboardOverviewR\boverview\"\xfd\x03\n" +
+	"\boverview\x18\x01 \x01(\v2\x1e.openseer.v1.DashboardOverviewR\boverview\"\x18\n" +
+	"\x16GetRegionHealthRequest\"N\n" +
+	"\x17GetRegionHealthResponse\x123\n" +
+	"\aregions\x18\x01 \x03(\v2\x19.openseer.v1.RegionHealthR\aregions\"t\n" +
+	"\fRegionHealth\x12\x16\n" +
+	"\x06region\x18\x01 \x01(\tR\x06region\x12'\n" +
+	"\x0fhealthy_workers\x18\x02 \x01(\x03R\x0ehealthyWorkers\x12#\n" +
+	"\rtotal_workers\x18\x03 \x01(\x03R\ftotalWorkers\"\xfd\x03\n" +
 	"\x11DashboardOverview\x12%\n" +
 	"\x0etotal_monitors\x18\x01 \x01(\x03R\rtotalMonitors\x12)\n" +
 	"\x10enabled_monitors\x18\x02 \x01(\x03R\x0fenabledMonitors\x12+\n" +
@@ -403,9 +550,10 @@ const file_openseer_v1_dashboard_proto_rawDesc = "" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12/\n" +
 	"\x14avg_response_time_ms\x18\x03 \x01(\x01R\x11avgResponseTimeMs\x12/\n" +
 	"\x14p95_response_time_ms\x18\x04 \x01(\x01R\x11p95ResponseTimeMs\x12/\n" +
-	"\x14p99_response_time_ms\x18\x05 \x01(\x01R\x11p99ResponseTimeMs2\x81\x01\n" +
+	"\x14p99_response_time_ms\x18\x05 \x01(\x01R\x11p99ResponseTimeMs2\xe1\x01\n" +
 	"\x10DashboardService\x12m\n" +
-	"\x14GetDashboardOverview\x12(.openseer.v1.GetDashboardOverviewRequest\x1a).openseer.v1.GetDashboardOverviewResponse\"\x00B7Z5github.com/crisog/openseer/gen/openseer/v1;openseerv1b\x06proto3"
+	"\x14GetDashboardOverview\x12(.openseer.v1.GetDashboardOverviewRequest\x1a).openseer.v1.GetDashboardOverviewResponse\"\x00\x12^\n" +
+	"\x0fGetRegionHealth\x12#.openseer.v1.GetRegionHealthRequest\x1a$.openseer.v1.GetRegionHealthResponse\"\x00B7Z5github.com/crisog/openseer/gen/openseer/v1;openseerv1b\x06proto3"
 
 var (
 	file_openseer_v1_dashboard_proto_rawDescOnce sync.Once
@@ -419,27 +567,33 @@ func file_openseer_v1_dashboard_proto_rawDescGZIP() []byte {
 	return file_openseer_v1_dashboard_proto_rawDescData
 }
 
-var file_openseer_v1_dashboard_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_openseer_v1_dashboard_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_openseer_v1_dashboard_proto_goTypes = []any{
 	(*GetDashboardOverviewRequest)(nil),  // 0: openseer.v1.GetDashboardOverviewRequest
 	(*GetDashboardOverviewResponse)(nil), // 1: openseer.v1.GetDashboardOverviewResponse
-	(*DashboardOverview)(nil),            // 2: openseer.v1.DashboardOverview
-	(*MonitorStatus)(nil),                // 3: openseer.v1.MonitorStatus
-	(*MonitorPerformance)(nil),           // 4: openseer.v1.MonitorPerformance
-	(*timestamppb.Timestamp)(nil),        // 5: google.protobuf.Timestamp
+	(*GetRegionHealthRequest)(nil),       // 2: openseer.v1.GetRegionHealthRequest
+	(*GetRegionHealthResponse)(nil),      // 3: openseer.v1.GetRegionHealthResponse
+	(*RegionHealth)(nil),                 // 4: openseer.v1.RegionHealth
+	(*DashboardOverview)(nil),            // 5: openseer.v1.DashboardOverview
+	(*MonitorStatus)(nil),                // 6: openseer.v1.MonitorStatus
+	(*MonitorPerformance)(nil),           // 7: openseer.v1.MonitorPerformance
+	(*timestamppb.Timestamp)(nil),        // 8: google.protobuf.Timestamp
 }
 var file_openseer_v1_dashboard_proto_depIdxs = []int32{
-	2, // 0: openseer.v1.GetDashboardOverviewResponse.overview:type_name -> openseer.v1.DashboardOverview
-	3, // 1: openseer.v1.DashboardOverview.recent_failures:type_name -> openseer.v1.MonitorStatus
-	4, // 2: openseer.v1.DashboardOverview.slowest_monitors:type_name -> openseer.v1.MonitorPerformance
-	5, // 3: openseer.v1.MonitorStatus.last_failure:type_name -> google.protobuf.Timestamp
-	0, // 4: openseer.v1.DashboardService.GetDashboardOverview:input_type -> openseer.v1.GetDashboardOverviewRequest
-	1, // 5: openseer.v1.DashboardService.GetDashboardOverview:output_type -> openseer.v1.GetDashboardOverviewResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 0: openseer.v1.GetDashboardOverviewResponse.overview:type_name -> openseer.v1.DashboardOverview
+	4, // 1: openseer.v1.GetRegionHealthResponse.regions:type_name -> openseer.v1.RegionHealth
+	6, // 2: openseer.v1.DashboardOverview.recent_failures:type_name -> openseer.v1.MonitorStatus
+	7, // 3: openseer.v1.DashboardOverview.slowest_monitors:type_name -> openseer.v1.MonitorPerformance
+	8, // 4: openseer.v1.MonitorStatus.last_failure:type_name -> google.protobuf.Timestamp
+	0, // 5: openseer.v1.DashboardService.GetDashboardOverview:input_type -> openseer.v1.GetDashboardOverviewRequest
+	2, // 6: openseer.v1.DashboardService.GetRegionHealth:input_type -> openseer.v1.GetRegionHealthRequest
+	1, // 7: openseer.v1.DashboardService.GetDashboardOverview:output_type -> openseer.v1.GetDashboardOverviewResponse
+	3, // 8: openseer.v1.DashboardService.GetRegionHealth:output_type -> openseer.v1.GetRegionHealthResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_openseer_v1_dashboard_proto_init() }
@@ -453,7 +607,7 @@ func file_openseer_v1_dashboard_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_openseer_v1_dashboard_proto_rawDesc), len(file_openseer_v1_dashboard_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

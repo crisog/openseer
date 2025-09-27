@@ -14,6 +14,7 @@ import (
 	"github.com/crisog/openseer/gen/openseer/v1/openseerv1connect"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
 	"github.com/crisog/openseer/internal/pkg/auth"
+	"github.com/crisog/openseer/internal/pkg/regions"
 	"go.uber.org/zap"
 )
 
@@ -79,10 +80,12 @@ func (s *EnrollmentService) EnrollWorker(
 
 	expiresAt := time.Now().Add(30 * 24 * time.Hour).Unix()
 
+	normalizedRegion := regions.Normalize(msg.Region)
+
 	_, err = s.queries.EnrollWorker(ctx, &sqlc.EnrollWorkerParams{
 		ID:                   workerID,
 		Hostname:             sql.NullString{String: msg.Hostname, Valid: true},
-		Region:               msg.Region,
+		Region:               normalizedRegion,
 		Version:              msg.WorkerVersion,
 		CertificateExpiresAt: sql.NullTime{Time: time.Unix(expiresAt, 0), Valid: true},
 	})
@@ -94,7 +97,7 @@ func (s *EnrollmentService) EnrollWorker(
 	s.logger.Info("Worker enrolled successfully",
 		zap.String("worker_id", workerID),
 		zap.String("hostname", msg.Hostname),
-		zap.String("region", msg.Region),
+		zap.String("region", normalizedRegion),
 		zap.String("version", msg.WorkerVersion))
 
 	return connect.NewResponse(&openseerv1.EnrollWorkerResponse{

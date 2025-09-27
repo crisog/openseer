@@ -36,11 +36,15 @@ const (
 	// DashboardServiceGetDashboardOverviewProcedure is the fully-qualified name of the
 	// DashboardService's GetDashboardOverview RPC.
 	DashboardServiceGetDashboardOverviewProcedure = "/openseer.v1.DashboardService/GetDashboardOverview"
+	// DashboardServiceGetRegionHealthProcedure is the fully-qualified name of the DashboardService's
+	// GetRegionHealth RPC.
+	DashboardServiceGetRegionHealthProcedure = "/openseer.v1.DashboardService/GetRegionHealth"
 )
 
 // DashboardServiceClient is a client for the openseer.v1.DashboardService service.
 type DashboardServiceClient interface {
 	GetDashboardOverview(context.Context, *connect.Request[v1.GetDashboardOverviewRequest]) (*connect.Response[v1.GetDashboardOverviewResponse], error)
+	GetRegionHealth(context.Context, *connect.Request[v1.GetRegionHealthRequest]) (*connect.Response[v1.GetRegionHealthResponse], error)
 }
 
 // NewDashboardServiceClient constructs a client for the openseer.v1.DashboardService service. By
@@ -60,12 +64,19 @@ func NewDashboardServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(dashboardServiceMethods.ByName("GetDashboardOverview")),
 			connect.WithClientOptions(opts...),
 		),
+		getRegionHealth: connect.NewClient[v1.GetRegionHealthRequest, v1.GetRegionHealthResponse](
+			httpClient,
+			baseURL+DashboardServiceGetRegionHealthProcedure,
+			connect.WithSchema(dashboardServiceMethods.ByName("GetRegionHealth")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // dashboardServiceClient implements DashboardServiceClient.
 type dashboardServiceClient struct {
 	getDashboardOverview *connect.Client[v1.GetDashboardOverviewRequest, v1.GetDashboardOverviewResponse]
+	getRegionHealth      *connect.Client[v1.GetRegionHealthRequest, v1.GetRegionHealthResponse]
 }
 
 // GetDashboardOverview calls openseer.v1.DashboardService.GetDashboardOverview.
@@ -73,9 +84,15 @@ func (c *dashboardServiceClient) GetDashboardOverview(ctx context.Context, req *
 	return c.getDashboardOverview.CallUnary(ctx, req)
 }
 
+// GetRegionHealth calls openseer.v1.DashboardService.GetRegionHealth.
+func (c *dashboardServiceClient) GetRegionHealth(ctx context.Context, req *connect.Request[v1.GetRegionHealthRequest]) (*connect.Response[v1.GetRegionHealthResponse], error) {
+	return c.getRegionHealth.CallUnary(ctx, req)
+}
+
 // DashboardServiceHandler is an implementation of the openseer.v1.DashboardService service.
 type DashboardServiceHandler interface {
 	GetDashboardOverview(context.Context, *connect.Request[v1.GetDashboardOverviewRequest]) (*connect.Response[v1.GetDashboardOverviewResponse], error)
+	GetRegionHealth(context.Context, *connect.Request[v1.GetRegionHealthRequest]) (*connect.Response[v1.GetRegionHealthResponse], error)
 }
 
 // NewDashboardServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -91,10 +108,18 @@ func NewDashboardServiceHandler(svc DashboardServiceHandler, opts ...connect.Han
 		connect.WithSchema(dashboardServiceMethods.ByName("GetDashboardOverview")),
 		connect.WithHandlerOptions(opts...),
 	)
+	dashboardServiceGetRegionHealthHandler := connect.NewUnaryHandler(
+		DashboardServiceGetRegionHealthProcedure,
+		svc.GetRegionHealth,
+		connect.WithSchema(dashboardServiceMethods.ByName("GetRegionHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/openseer.v1.DashboardService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DashboardServiceGetDashboardOverviewProcedure:
 			dashboardServiceGetDashboardOverviewHandler.ServeHTTP(w, r)
+		case DashboardServiceGetRegionHealthProcedure:
+			dashboardServiceGetRegionHealthHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,4 +131,8 @@ type UnimplementedDashboardServiceHandler struct{}
 
 func (UnimplementedDashboardServiceHandler) GetDashboardOverview(context.Context, *connect.Request[v1.GetDashboardOverviewRequest]) (*connect.Response[v1.GetDashboardOverviewResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.DashboardService.GetDashboardOverview is not implemented"))
+}
+
+func (UnimplementedDashboardServiceHandler) GetRegionHealth(context.Context, *connect.Request[v1.GetRegionHealthRequest]) (*connect.Response[v1.GetRegionHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.DashboardService.GetRegionHealth is not implemented"))
 }

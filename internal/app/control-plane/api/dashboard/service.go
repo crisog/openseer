@@ -102,3 +102,30 @@ func (s *DashboardService) GetDashboardOverview(
 		},
 	}), nil
 }
+
+func (s *DashboardService) GetRegionHealth(
+	ctx context.Context,
+	req *connect.Request[openseerv1.GetRegionHealthRequest],
+) (*connect.Response[openseerv1.GetRegionHealthResponse], error) {
+	if _, ok := session.GetUserFromContext(ctx); !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
+	}
+
+	rows, err := s.queries.ListRegionHealth(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	regions := make([]*openseerv1.RegionHealth, 0, len(rows))
+	for _, row := range rows {
+		regions = append(regions, &openseerv1.RegionHealth{
+			Region:         row.Region,
+			HealthyWorkers: row.HealthyWorkers,
+			TotalWorkers:   row.TotalWorkers,
+		})
+	}
+
+	return connect.NewResponse(&openseerv1.GetRegionHealthResponse{
+		Regions: regions,
+	}), nil
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -11,6 +12,7 @@ import (
 	"github.com/crisog/openseer/gen/openseer/v1/openseerv1connect"
 	"github.com/crisog/openseer/internal/app/control-plane/auth/session"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
+	"github.com/crisog/openseer/internal/pkg/regions"
 	"github.com/sqlc-dev/pqtype"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -57,6 +59,7 @@ func (s *MonitorsService) CreateMonitor(
 	if len(msg.Regions) == 0 {
 		msg.Regions = []string{"global"}
 	}
+	msg.Regions = regions.NormalizeList(msg.Regions)
 
 	enabled := true
 	if msg.Enabled != nil {
@@ -114,9 +117,22 @@ func (s *MonitorsService) CreateMonitor(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	return connect.NewResponse(&openseerv1.CreateMonitorResponse{
+	warningRegions, err := s.zeroHealthyRegions(ctx, msg.Regions)
+	if err != nil {
+		s.logger.Error("Failed to evaluate region health on monitor create", zap.Error(err))
+	}
+
+	resp := connect.NewResponse(&openseerv1.CreateMonitorResponse{
 		Monitor: protoCheck,
-	}), nil
+	})
+	if len(warningRegions) > 0 {
+		resp.Header().Set("X-Openseer-Zero-Healthy-Regions", strings.Join(warningRegions, ","))
+		s.logger.Warn("Monitor created with regions lacking healthy workers",
+			zap.String("monitor_id", check.ID),
+			zap.Strings("regions", warningRegions))
+	}
+
+	return resp, nil
 }
 
 func (s *MonitorsService) GetMonitor(
@@ -212,7 +228,7 @@ func (s *MonitorsService) UpdateMonitor(
 		params.TimeoutMs = *req.Msg.TimeoutMs
 	}
 	if len(req.Msg.Regions) > 0 {
-		params.Regions = req.Msg.Regions
+		params.Regions = regions.NormalizeList(req.Msg.Regions)
 	}
 	if req.Msg.Method != nil {
 		params.Method = *req.Msg.Method
@@ -260,9 +276,22 @@ func (s *MonitorsService) UpdateMonitor(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	return connect.NewResponse(&openseerv1.UpdateMonitorResponse{
+	warningRegions, err := s.zeroHealthyRegions(ctx, params.Regions)
+	if err != nil {
+		s.logger.Error("Failed to evaluate region health on monitor update", zap.Error(err))
+	}
+
+	resp := connect.NewResponse(&openseerv1.UpdateMonitorResponse{
 		Monitor: protoCheck,
-	}), nil
+	})
+	if len(warningRegions) > 0 {
+		resp.Header().Set("X-Openseer-Zero-Healthy-Regions", strings.Join(warningRegions, ","))
+		s.logger.Warn("Monitor updated with regions lacking healthy workers",
+			zap.String("monitor_id", updated.ID),
+			zap.Strings("regions", warningRegions))
+	}
+
+	return resp, nil
 }
 
 func (s *MonitorsService) ListMonitors(
@@ -464,6 +493,40 @@ func (s *MonitorsService) GetMonitorMetrics(
 	return connect.NewResponse(&openseerv1.GetMonitorMetricsResponse{
 		Metrics: protoMetrics,
 	}), nil
+}
+
+func (s *MonitorsService) zeroHealthyRegions(ctx context.Context, monitorRegions []string) ([]string, error) {
+	if len(monitorRegions) == 0 {
+		return nil, nil
+	}
+
+	rows, err := s.queries.ListRegionHealth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	healthyByRegion := make(map[string]int64, len(rows))
+	for _, row := range rows {
+		healthyByRegion[row.Region] = row.HealthyWorkers
+	}
+
+	warnings := make([]string, 0)
+	seen := make(map[string]struct{}, len(monitorRegions))
+	for _, region := range monitorRegions {
+		if region == "global" {
+			continue
+		}
+		if _, exists := seen[region]; exists {
+			continue
+		}
+		seen[region] = struct{}{}
+
+		if healthyByRegion[region] <= 0 {
+			warnings = append(warnings, region)
+		}
+	}
+
+	return warnings, nil
 }
 
 func (s *MonitorsService) dbMonitorToProto(check *sqlc.AppMonitor) (*openseerv1.Monitor, error) {

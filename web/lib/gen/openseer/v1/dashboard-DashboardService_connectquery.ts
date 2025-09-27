@@ -8,3 +8,8 @@ import { DashboardService } from "./dashboard_pb";
  * @generated from rpc openseer.v1.DashboardService.GetDashboardOverview
  */
 export const getDashboardOverview = DashboardService.method.getDashboardOverview;
+
+/**
+ * @generated from rpc openseer.v1.DashboardService.GetRegionHealth
+ */
+export const getRegionHealth = DashboardService.method.getRegionHealth;

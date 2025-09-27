@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 
 service DashboardService {
   rpc GetDashboardOverview(GetDashboardOverviewRequest) returns (GetDashboardOverviewResponse) {}
+  rpc GetRegionHealth(GetRegionHealthRequest) returns (GetRegionHealthResponse) {}
 }
 
 message GetDashboardOverviewRequest {
@@ -16,6 +17,18 @@ message GetDashboardOverviewRequest {
 
 message GetDashboardOverviewResponse {
   DashboardOverview overview = 1;
+}
+
+message GetRegionHealthRequest {}
+
+message GetRegionHealthResponse {
+  repeated RegionHealth regions = 1;
+}
+
+message RegionHealth {
+  string region = 1;
+  int64 healthy_workers = 2;
+  int64 total_workers = 3;
 }
 
 message DashboardOverview {

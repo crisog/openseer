@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file openseer/v1/dashboard.proto.
  */
 export const file_openseer_v1_dashboard: GenFile = /*@__PURE__*/
-  fileDesc("ChtvcGVuc2Vlci92MS9kYXNoYm9hcmQucHJvdG8SC29wZW5zZWVyLnYxIh0KG0dldERhc2hib2FyZE92ZXJ2aWV3UmVxdWVzdCJQChxHZXREYXNoYm9hcmRPdmVydmlld1Jlc3BvbnNlEjAKCG92ZXJ2aWV3GAEgASgLMh4ub3BlbnNlZXIudjEuRGFzaGJvYXJkT3ZlcnZpZXci1QIKEURhc2hib2FyZE92ZXJ2aWV3EhYKDnRvdGFsX21vbml0b3JzGAEgASgDEhgKEGVuYWJsZWRfbW9uaXRvcnMYAiABKAMSGQoRZGlzYWJsZWRfbW9uaXRvcnMYAyABKAMSGAoQaGVhbHRoeV9tb25pdG9ycxgEIAEoAxIaChJ1bmhlYWx0aHlfbW9uaXRvcnMYBSABKAMSFgoOdG90YWxfcnVuc18yNGgYBiABKAMSFwoPZmFpbGVkX3J1bnNfMjRoGAcgASgDEhwKFG92ZXJhbGxfc3VjY2Vzc19yYXRlGAggASgBEjMKD3JlY2VudF9mYWlsdXJlcxgJIAMoCzIaLm9wZW5zZWVyLnYxLk1vbml0b3JTdGF0dXMSOQoQc2xvd2VzdF9tb25pdG9ycxgKIAMoCzIfLm9wZW5zZWVyLnYxLk1vbml0b3JQZXJmb3JtYW5jZSKJAQoNTW9uaXRvclN0YXR1cxISCgptb25pdG9yX2lkGAEgASgJEgsKA3VybBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSMAoMbGFzdF9mYWlsdXJlGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1lcnJvcl9tZXNzYWdlGAUgASgJIo8BChJNb25pdG9yUGVyZm9ybWFuY2USEgoKbW9uaXRvcl9pZBgBIAEoCRILCgN1cmwYAiABKAkSHAoUYXZnX3Jlc3BvbnNlX3RpbWVfbXMYAyABKAESHAoUcDk1X3Jlc3BvbnNlX3RpbWVfbXMYBCABKAESHAoUcDk5X3Jlc3BvbnNlX3RpbWVfbXMYBSABKAEygQEKEERhc2hib2FyZFNlcnZpY2USbQoUR2V0RGFzaGJvYXJkT3ZlcnZpZXcSKC5vcGVuc2Vlci52MS5HZXREYXNoYm9hcmRPdmVydmlld1JlcXVlc3QaKS5vcGVuc2Vlci52MS5HZXREYXNoYm9hcmRPdmVydmlld1Jlc3BvbnNlIgBCN1o1Z2l0aHViLmNvbS9jcmlzb2cvb3BlbnNlZXIvZ2VuL29wZW5zZWVyL3YxO29wZW5zZWVydjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChtvcGVuc2Vlci92MS9kYXNoYm9hcmQucHJvdG8SC29wZW5zZWVyLnYxIh0KG0dldERhc2hib2FyZE92ZXJ2aWV3UmVxdWVzdCJQChxHZXREYXNoYm9hcmRPdmVydmlld1Jlc3BvbnNlEjAKCG92ZXJ2aWV3GAEgASgLMh4ub3BlbnNlZXIudjEuRGFzaGJvYXJkT3ZlcnZpZXciGAoWR2V0UmVnaW9uSGVhbHRoUmVxdWVzdCJFChdHZXRSZWdpb25IZWFsdGhSZXNwb25zZRIqCgdyZWdpb25zGAEgAygLMhkub3BlbnNlZXIudjEuUmVnaW9uSGVhbHRoIk4KDFJlZ2lvbkhlYWx0aBIOCgZyZWdpb24YASABKAkSFwoPaGVhbHRoeV93b3JrZXJzGAIgASgDEhUKDXRvdGFsX3dvcmtlcnMYAyABKAMi1QIKEURhc2hib2FyZE92ZXJ2aWV3EhYKDnRvdGFsX21vbml0b3JzGAEgASgDEhgKEGVuYWJsZWRfbW9uaXRvcnMYAiABKAMSGQoRZGlzYWJsZWRfbW9uaXRvcnMYAyABKAMSGAoQaGVhbHRoeV9tb25pdG9ycxgEIAEoAxIaChJ1bmhlYWx0aHlfbW9uaXRvcnMYBSABKAMSFgoOdG90YWxfcnVuc18yNGgYBiABKAMSFwoPZmFpbGVkX3J1bnNfMjRoGAcgASgDEhwKFG92ZXJhbGxfc3VjY2Vzc19yYXRlGAggASgBEjMKD3JlY2VudF9mYWlsdXJlcxgJIAMoCzIaLm9wZW5zZWVyLnYxLk1vbml0b3JTdGF0dXMSOQoQc2xvd2VzdF9tb25pdG9ycxgKIAMoCzIfLm9wZW5zZWVyLnYxLk1vbml0b3JQZXJmb3JtYW5jZSKJAQoNTW9uaXRvclN0YXR1cxISCgptb25pdG9yX2lkGAEgASgJEgsKA3VybBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSMAoMbGFzdF9mYWlsdXJlGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1lcnJvcl9tZXNzYWdlGAUgASgJIo8BChJNb25pdG9yUGVyZm9ybWFuY2USEgoKbW9uaXRvcl9pZBgBIAEoCRILCgN1cmwYAiABKAkSHAoUYXZnX3Jlc3BvbnNlX3RpbWVfbXMYAyABKAESHAoUcDk1X3Jlc3BvbnNlX3RpbWVfbXMYBCABKAESHAoUcDk5X3Jlc3BvbnNlX3RpbWVfbXMYBSABKAEy4QEKEERhc2hib2FyZFNlcnZpY2USbQoUR2V0RGFzaGJvYXJkT3ZlcnZpZXcSKC5vcGVuc2Vlci52MS5HZXREYXNoYm9hcmRPdmVydmlld1JlcXVlc3QaKS5vcGVuc2Vlci52MS5HZXREYXNoYm9hcmRPdmVydmlld1Jlc3BvbnNlIgASXgoPR2V0UmVnaW9uSGVhbHRoEiMub3BlbnNlZXIudjEuR2V0UmVnaW9uSGVhbHRoUmVxdWVzdBokLm9wZW5zZWVyLnYxLkdldFJlZ2lvbkhlYWx0aFJlc3BvbnNlIgBCN1o1Z2l0aHViLmNvbS9jcmlzb2cvb3BlbnNlZXIvZ2VuL29wZW5zZWVyL3YxO29wZW5zZWVydjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Empty for now
@@ -45,6 +45,63 @@ export type GetDashboardOverviewResponse = Message<"openseer.v1.GetDashboardOver
  */
 export const GetDashboardOverviewResponseSchema: GenMessage<GetDashboardOverviewResponse> = /*@__PURE__*/
   messageDesc(file_openseer_v1_dashboard, 1);
+
+/**
+ * @generated from message openseer.v1.GetRegionHealthRequest
+ */
+export type GetRegionHealthRequest = Message<"openseer.v1.GetRegionHealthRequest"> & {
+};
+
+/**
+ * Describes the message openseer.v1.GetRegionHealthRequest.
+ * Use `create(GetRegionHealthRequestSchema)` to create a new message.
+ */
+export const GetRegionHealthRequestSchema: GenMessage<GetRegionHealthRequest> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_dashboard, 2);
+
+/**
+ * @generated from message openseer.v1.GetRegionHealthResponse
+ */
+export type GetRegionHealthResponse = Message<"openseer.v1.GetRegionHealthResponse"> & {
+  /**
+   * @generated from field: repeated openseer.v1.RegionHealth regions = 1;
+   */
+  regions: RegionHealth[];
+};
+
+/**
+ * Describes the message openseer.v1.GetRegionHealthResponse.
+ * Use `create(GetRegionHealthResponseSchema)` to create a new message.
+ */
+export const GetRegionHealthResponseSchema: GenMessage<GetRegionHealthResponse> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_dashboard, 3);
+
+/**
+ * @generated from message openseer.v1.RegionHealth
+ */
+export type RegionHealth = Message<"openseer.v1.RegionHealth"> & {
+  /**
+   * @generated from field: string region = 1;
+   */
+  region: string;
+
+  /**
+   * @generated from field: int64 healthy_workers = 2;
+   */
+  healthyWorkers: bigint;
+
+  /**
+   * @generated from field: int64 total_workers = 3;
+   */
+  totalWorkers: bigint;
+};
+
+/**
+ * Describes the message openseer.v1.RegionHealth.
+ * Use `create(RegionHealthSchema)` to create a new message.
+ */
+export const RegionHealthSchema: GenMessage<RegionHealth> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_dashboard, 4);
 
 /**
  * @generated from message openseer.v1.DashboardOverview
@@ -106,7 +163,7 @@ export type DashboardOverview = Message<"openseer.v1.DashboardOverview"> & {
  * Use `create(DashboardOverviewSchema)` to create a new message.
  */
 export const DashboardOverviewSchema: GenMessage<DashboardOverview> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_dashboard, 2);
+  messageDesc(file_openseer_v1_dashboard, 5);
 
 /**
  * @generated from message openseer.v1.MonitorStatus
@@ -143,7 +200,7 @@ export type MonitorStatus = Message<"openseer.v1.MonitorStatus"> & {
  * Use `create(MonitorStatusSchema)` to create a new message.
  */
 export const MonitorStatusSchema: GenMessage<MonitorStatus> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_dashboard, 3);
+  messageDesc(file_openseer_v1_dashboard, 6);
 
 /**
  * @generated from message openseer.v1.MonitorPerformance
@@ -180,7 +237,7 @@ export type MonitorPerformance = Message<"openseer.v1.MonitorPerformance"> & {
  * Use `create(MonitorPerformanceSchema)` to create a new message.
  */
 export const MonitorPerformanceSchema: GenMessage<MonitorPerformance> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_dashboard, 4);
+  messageDesc(file_openseer_v1_dashboard, 7);
 
 /**
  * @generated from service openseer.v1.DashboardService
@@ -193,6 +250,14 @@ export const DashboardService: GenService<{
     methodKind: "unary";
     input: typeof GetDashboardOverviewRequestSchema;
     output: typeof GetDashboardOverviewResponseSchema;
+  },
+  /**
+   * @generated from rpc openseer.v1.DashboardService.GetRegionHealth
+   */
+  getRegionHealth: {
+    methodKind: "unary";
+    input: typeof GetRegionHealthRequestSchema;
+    output: typeof GetRegionHealthResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_openseer_v1_dashboard, 0);
