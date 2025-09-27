@@ -109,7 +109,7 @@ function StatsCards({ results }: { results: MonitorResult[] }): React.JSX.Elemen
   }
 
   return (
-    <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
       <Card className="surface !gap-1">
         <CardHeader className="pb-0 py-2">
           <CardTitle className="text-xs md:text-sm font-medium flex items-center gap-2">
@@ -204,36 +204,38 @@ function ResultsTable({ results }: { results: MonitorResult[] }): React.JSX.Elem
         <CardDescription>Showing {table.getRowModel().rows.length} of {results.length} results</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map(headerGroup => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map(row => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
+        <div className="w-full overflow-x-auto">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map(headerGroup => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">No results</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map(row => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">No results</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</div>
           <div className="flex items-center gap-2">
@@ -395,7 +397,7 @@ function MonitorDetailsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-4 pt-4 sm:pt-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 pt-4 sm:pt-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 md:gap-3">
@@ -440,7 +442,7 @@ function MonitorDetailsPage() {
       <StatsCards results={results} />
 
       {/* Charts */}
-      <div className="grid gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <UptimeChart monitorId={monitorId} />
         <LatencyChart monitorId={monitorId} />
       </div>
