@@ -27,5 +27,6 @@ runs:
       shell: bash
       env:
         BETTER_AUTH_SECRET: test-secret-for-integration-tests
+        DATABASE_URL: postgres://openseer:openseer@localhost:5432/openseer?sslmode=disable
       run: npm run build
 
