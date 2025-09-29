@@ -60,10 +60,10 @@ export function Sidebar(): React.JSX.Element {
   }, [isOpen, close]);
 
   const getCurrentActiveTab = (path: string): DashboardTab => {
-    if (path === '/dashboard' || path.startsWith('/dashboard/monitors')) return 'monitors';
-    if (path.startsWith('/dashboard/settings')) return 'settings';
-    if (path.startsWith('/dashboard/incidents')) return 'incidents';
-    if (path.startsWith('/dashboard/analytics')) return 'analytics';
+    if (path.startsWith('/monitors')) return 'monitors';
+    if (path.startsWith('/settings')) return 'settings';
+    if (path.startsWith('/incidents')) return 'incidents';
+    if (path.startsWith('/analytics')) return 'analytics';
     return 'monitors';
   };
 
@@ -77,11 +77,11 @@ export function Sidebar(): React.JSX.Element {
 
     setTimeout(() => {
       if (tab === 'monitors') {
-        router.push('/dashboard');
+        router.push('/monitors');
       } else if (tab === 'settings') {
-        router.push('/dashboard/settings');
+        router.push('/settings');
       } else {
-        router.push(`/dashboard/${tab}`);
+        router.push(`/${tab}`);
       }
     }, 150);
   };

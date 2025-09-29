@@ -7,16 +7,26 @@ export async function middleware(request: NextRequest) {
         headers: await headers()
     });
 
-    const isAuthPage = request.nextUrl.pathname === "/" || 
+    const isAuthPage = request.nextUrl.pathname === "/" ||
                       request.nextUrl.pathname === "/sign-in" ||
                       request.nextUrl.pathname === "/login";
-    const isDashboard = request.nextUrl.pathname.startsWith("/dashboard");
+
+    const protectedPrefixes = [
+        "/monitors",
+        "/settings",
+        "/incidents",
+        "/analytics",
+    ];
+
+    const isProtectedRoute = protectedPrefixes.some((prefix) =>
+        request.nextUrl.pathname === prefix || request.nextUrl.pathname.startsWith(`${prefix}/`)
+    );
 
     if (session && isAuthPage) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
+        return NextResponse.redirect(new URL("/monitors", request.url));
     }
 
-    if (!session && isDashboard) {
+    if (!session && isProtectedRoute) {
         return NextResponse.redirect(new URL("/", request.url));
     }
 
@@ -25,5 +35,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     runtime: "nodejs",
-    matcher: ["/dashboard/:path*"],
+    matcher: [
+        "/monitors/:path*",
+        "/settings/:path*",
+        "/incidents/:path*",
+        "/analytics/:path*"
+    ],
 };

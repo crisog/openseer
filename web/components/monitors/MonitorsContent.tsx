@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useState, createContext, useContext, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, createContext, useContext, useCallback } from 'react';
 import { MonitorsList } from './MonitorsList';
-import { MonitorDetailsContent } from './MonitorDetailsContent';
 import { RefreshStatusIndicator } from './RefreshStatusIndicator';
 
 interface RefreshContextType {
@@ -26,13 +24,7 @@ export function useRefresh(): RefreshContextType {
 
 function MonitorsContentInner(): React.JSX.Element {
   const { refreshInterval, lastRefresh, isRefreshing } = useRefresh();
-  const searchParams = useSearchParams();
-  const monitorId = searchParams.get('id');
-  
-  if (monitorId) {
-    return <MonitorDetailsContent />;
-  }
-  
+
   return (
     <div className="relative min-h-screen">
       <div className="p-6 sm:p-8 lg:p-10 space-y-6 pt-8 sm:pt-10">
@@ -71,9 +63,7 @@ export function MonitorsContent(): React.JSX.Element {
 
   return (
     <RefreshContext.Provider value={contextValue}>
-      <Suspense fallback={<div className="p-6 sm:p-8 lg:p-10"><div className="animate-pulse bg-secondary/20 rounded-lg h-40 w-full"></div></div>}>
-        <MonitorsContentInner />
-      </Suspense>
+      <MonitorsContentInner />
     </RefreshContext.Provider>
   );
 }

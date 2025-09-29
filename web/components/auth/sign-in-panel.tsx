@@ -2,21 +2,17 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "@/lib/auth-client";
+import { signIn, signUp } from "@/lib/auth-client";
 
 import { BrandHeader } from "./brand-header";
 
-type SignInPanelProps = {
-  statusMessage?: string | null;
-};
-
-export function SignInPanel({ statusMessage }: SignInPanelProps) {
+export function SignInPanel() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,19 +26,21 @@ export function SignInPanel({ statusMessage }: SignInPanelProps) {
     setAuthError(null);
 
     try {
-      const result = await signIn.email({
+      const signInResult = await signIn.email({
         email,
         password,
       });
 
-      if (result.error) {
-        const message =
-          result.error.message && result.error.message !== ""
-            ? result.error.message
-            : "Invalid email or password";
-        setAuthError(message);
+      if (signInResult.error && signInResult.error.status === 401) {
+        const displayName = email.split("@")[0];
+
+        await signUp.email({
+          email,
+          password,
+          name: displayName,
+        });
       } else {
-        router.push("/dashboard");
+        router.push("/monitors");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Authentication failed";
@@ -60,19 +58,12 @@ export function SignInPanel({ statusMessage }: SignInPanelProps) {
         <BrandHeader />
         <Card className="surface">
           <CardHeader className="text-center space-y-3 py-6">
-            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+            <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
             <p className="text-muted-foreground">
-              Sign in with the administrator credentials that were provisioned for you
+              Sign in or create an account to access your uptime monitoring dashboard
             </p>
           </CardHeader>
           <CardContent className="space-y-6 px-8 pb-8">
-            {statusMessage ? (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 mt-0.5" />
-                <span>{statusMessage}</span>
-              </div>
-            ) : null}
-
             {authError ? (
               <div className="rounded-lg bg-destructive/10 p-3 border border-destructive/20">
                 <p className="text-sm text-destructive">{authError}</p>
@@ -126,7 +117,7 @@ export function SignInPanel({ statusMessage }: SignInPanelProps) {
 
               <Button type="submit" disabled={isLoading} size="lg" className="w-full h-12">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? "Authenticating..." : "Continue"}
               </Button>
             </form>
           </CardContent>

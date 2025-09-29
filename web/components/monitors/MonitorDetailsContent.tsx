@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, Clock, Globe, Activity, AlertCircle, Loader2, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Settings } from "lucide-react"
 import {
   createColumnHelper,
@@ -266,30 +266,32 @@ function ResultsTable({ results }: { results: MonitorResult[] }): React.JSX.Elem
   )
 }
 
-export function MonitorDetailsContent(): React.JSX.Element {
+interface MonitorDetailsContentProps {
+  monitorId: string;
+}
+
+export function MonitorDetailsContent({ monitorId }: MonitorDetailsContentProps): React.JSX.Element {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const monitorId = searchParams.get('id')
   
   const [refreshing, setRefreshing] = useState(false)
   const [isConfigureModalOpen, setIsConfigureModalOpen] = useState(false)
   
   const detailsQuery = useQuery(
     MonitorsService.method.getMonitor,
-    { id: monitorId! },
-    { enabled: !!monitorId }
+    { id: monitorId },
+    { enabled: true }
   )
 
   const resultsQuery = useQuery(
     MonitorsService.method.getMonitorResults,
-    { monitorId: monitorId!, limit: 100 },
-    { enabled: !!monitorId }
+    { monitorId: monitorId, limit: 100 },
+    { enabled: true }
   )
 
   const metricsQuery = useQuery(
     MonitorsService.method.getMonitorMetrics,
-    { monitorId: monitorId! },
-    { enabled: !!monitorId }
+    { monitorId: monitorId },
+    { enabled: true }
   )
 
   const monitor: UiMonitor | null = useMemo(() => {
@@ -356,7 +358,7 @@ export function MonitorDetailsContent(): React.JSX.Element {
   }
 
   const handleBackClick = () => {
-    router.push('/dashboard')
+    router.push('/monitors')
   }
 
   const handleConfigureSuccess = () => {
@@ -488,8 +490,8 @@ export function MonitorDetailsContent(): React.JSX.Element {
 
       {/* Charts */}
       <div className="grid gap-6">
-        <UptimeChart monitorId={monitorId!} />
-        <LatencyChart monitorId={monitorId!} />
+        <UptimeChart monitorId={monitorId} />
+        <LatencyChart monitorId={monitorId} />
       </div>
 
       <ResultsTable results={results} />

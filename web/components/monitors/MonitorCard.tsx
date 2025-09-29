@@ -42,7 +42,7 @@ function MonitorCardInner({
   const intervalSeconds = Math.round(monitor.intervalMs / 1000);
 
   const handleViewDetails = () => {
-    router.push(`/dashboard?id=${monitor.id}`);
+    router.push(`/monitors/${monitor.id}`);
   };
 
   const handleDeleteClick = () => {
