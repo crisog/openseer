@@ -940,9 +940,10 @@ func TestLeaseReaperBatchReclaim(t *testing.T) {
 	}
 
 	leasedJobs, err := env.Queries.LeaseJobs(ctx, &sqlc.LeaseJobsParams{
-		WorkerID: sql.NullString{String: worker.ID, Valid: true},
-		Limit:    int32(len(jobs)),
-		Region:   "us-east-1",
+		WorkerID:       sql.NullString{String: worker.ID, Valid: true},
+		Limit:          int32(len(jobs)),
+		Region:         "us-east-1",
+		LeaseExpiresAt: sql.NullTime{Time: time.Now().Add(10 * time.Minute), Valid: true},
 	})
 	require.NoError(t, err)
 	require.Len(t, leasedJobs, len(jobs))
