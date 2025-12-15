@@ -702,7 +702,7 @@ func TestSchedulerJitterCalculation(t *testing.T) {
 	require.NoError(t, err)
 	if len(jobs5s) >= 2 {
 		for i := 1; i < len(jobs5s); i++ {
-			interval := jobs5s[i].ScheduledAt.Sub(jobs5s[i-1].ScheduledAt)
+			interval := jobs5s[i-1].ScheduledAt.Sub(jobs5s[i].ScheduledAt)
 			require.InDelta(t, 5000, interval.Milliseconds(), 100,
 				"5s monitor should have no jitter, got interval: %v", interval)
 		}
@@ -712,7 +712,7 @@ func TestSchedulerJitterCalculation(t *testing.T) {
 	require.NoError(t, err)
 	if len(jobs15s) >= 2 {
 		for i := 1; i < len(jobs15s); i++ {
-			interval := jobs15s[i].ScheduledAt.Sub(jobs15s[i-1].ScheduledAt)
+			interval := jobs15s[i-1].ScheduledAt.Sub(jobs15s[i].ScheduledAt)
 			deviation := abs(interval.Milliseconds() - 15000)
 			maxJitter := int64(150)
 			require.LessOrEqual(t, deviation, maxJitter,
@@ -724,7 +724,7 @@ func TestSchedulerJitterCalculation(t *testing.T) {
 	require.NoError(t, err)
 	if len(jobs60s) >= 2 {
 		for i := 1; i < len(jobs60s); i++ {
-			interval := jobs60s[i].ScheduledAt.Sub(jobs60s[i-1].ScheduledAt)
+			interval := jobs60s[i-1].ScheduledAt.Sub(jobs60s[i].ScheduledAt)
 			deviation := abs(interval.Milliseconds() - 60000)
 			maxJitter := int64(6000)
 			require.LessOrEqual(t, deviation, maxJitter,
@@ -1178,7 +1178,7 @@ func TestSchedulerHighFrequencyMonitor(t *testing.T) {
 
 	for i := 1; i < len(jobs); i++ {
 		timeDiff := jobs[i-1].ScheduledAt.Sub(jobs[i].ScheduledAt)
-		require.InDelta(t, 1*time.Second, timeDiff, float64(500*time.Millisecond),
+		require.InDelta(t, float64(1*time.Second), float64(timeDiff), float64(500*time.Millisecond),
 			"jobs should be scheduled ~1 second apart (got %v)", timeDiff)
 	}
 }
