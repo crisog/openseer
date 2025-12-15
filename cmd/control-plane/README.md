@@ -2,6 +2,8 @@
 
 The Control Plane is a horizontally scalable Go service that orchestrates HTTP monitoring across distributed workers.
 
+> Note: The Worker API now uses Connect/HTTP with bearer tokens and polling endpoints (`GetJobs`, `SubmitResult`, `RenewLease`). Legacy mTLS/stream references in the diagrams below are deprecated and slated for cleanup.
+
 ## Overview
 
 ```mermaid
@@ -191,7 +193,7 @@ graph TB
 **workers**
 ```sql
 - id, hostname, region, version, status
-- enrolled_at, last_seen_at, certificate_expires_at
+- registered_at, enrolled_at, last_seen_at, token_hash
 - revoked_at, revoked_reason
 ```
 

@@ -2,6 +2,8 @@
 
 Workers are distributed Go agents that execute HTTP monitoring checks across geographic regions. They maintain persistent connections to the Control Plane and operate using a pull-based job model.
 
+> Note: Workers now poll the Control Plane over Connect/HTTP using bearer tokens (`GetJobs`/`SubmitResult`/`RenewLease`). The mTLS stream-based references below are legacy and will be removed.
+
 ## Overview
 
 ```mermaid

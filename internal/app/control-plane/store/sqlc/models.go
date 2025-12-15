@@ -86,7 +86,6 @@ type AppWorker struct {
 	Status               string         `json:"status"`
 	Hostname             sql.NullString `json:"hostname"`
 	EnrolledAt           time.Time      `json:"enrolled_at"`
-	CertificateExpiresAt sql.NullTime   `json:"certificate_expires_at"`
 	RevokedAt            sql.NullTime   `json:"revoked_at"`
 	RevokedReason        sql.NullString `json:"revoked_reason"`
 	TokenHash            sql.NullString `json:"token_hash"`

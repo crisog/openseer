@@ -67,7 +67,6 @@ type Querier interface {
 	ReclaimExpiredLeases(ctx context.Context) error
 	RegisterWorker(ctx context.Context, arg *RegisterWorkerParams) (*AppWorker, error)
 	RenewLease(ctx context.Context, arg *RenewLeaseParams) (*AppJob, error)
-	RenewWorkerCertificate(ctx context.Context, arg *RenewWorkerCertificateParams) (*AppWorker, error)
 	RevokeWorker(ctx context.Context, arg *RevokeWorkerParams) error
 	SetWorkerToken(ctx context.Context, arg *SetWorkerTokenParams) error
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*AppMonitor, error)

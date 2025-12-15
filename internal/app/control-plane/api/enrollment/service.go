@@ -75,11 +75,10 @@ func (s *EnrollmentService) EnrollWorker(
 	normalizedRegion := regions.Normalize(msg.Region)
 
 	_, err = s.queries.EnrollWorker(ctx, &sqlc.EnrollWorkerParams{
-		ID:                   workerID,
-		Hostname:             sql.NullString{String: msg.Hostname, Valid: true},
-		Region:               normalizedRegion,
-		Version:              msg.WorkerVersion,
-		CertificateExpiresAt: sql.NullTime{},
+		ID:       workerID,
+		Hostname: sql.NullString{String: msg.Hostname, Valid: true},
+		Region:   normalizedRegion,
+		Version:  msg.WorkerVersion,
 	})
 	if err != nil {
 		s.logger.Error("Failed to enroll worker in database", zap.String("worker_id", workerID), zap.Error(err))
