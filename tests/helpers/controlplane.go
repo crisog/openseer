@@ -167,6 +167,8 @@ func (env *ControlPlaneTestEnvironment) StartWorkerServer(t *testing.T, _ ...str
 	mux.Handle(workerPath, middleware.TokenAuthHandler(env.Queries, workerHandler))
 
 	server := httptest.NewServer(mux)
+	env.EnrollmentService.SetAPIEndpoint(server.URL)
+	env.APIEndpoint = server.URL
 
 	t.Cleanup(server.Close)
 	return server

@@ -35,6 +35,11 @@ func NewEnrollmentService(queries *sqlc.Queries, logger *zap.Logger, clusterToke
 	}
 }
 
+// SetAPIEndpoint updates the advertised worker API endpoint (useful in tests).
+func (s *EnrollmentService) SetAPIEndpoint(endpoint string) {
+	s.apiEndpoint = endpoint
+}
+
 func (s *EnrollmentService) EnrollWorker(
 	ctx context.Context,
 	req *connect.Request[openseerv1.EnrollWorkerRequest],
