@@ -2,23 +2,18 @@
 
 The Control Plane is a horizontally scalable Go service that orchestrates HTTP monitoring across distributed workers.
 
-> Note: The Worker API now uses Connect/HTTP with bearer tokens and polling endpoints (`GetJobs`, `SubmitResult`, `RenewLease`). Legacy mTLS/stream references in the diagrams below are deprecated and slated for cleanup.
-
 ## Overview
 
 ```mermaid
 graph TB
     WebAPI[🌐 Web API :8082<br/>Connect RPC]
-    WorkerAPI[⚡ Worker API :8081<br/>gRPC + mTLS]
+    WorkerAPI[⚡ Worker API :8081<br/>Connect HTTP + Token Auth]
 
     subgraph "Core Services"
         Scheduler[📅 Scheduler]
-        Dispatcher[🎯 Dispatcher]
         LeaseReaper[🔄 Lease Reaper]
-        StreamHealth[💓 Stream Health Monitor]
         WorkerInactivity[👥 Worker Inactivity Monitor]
         Ingest[📥 Ingest]
-        PKI[🔐 PKI Manager]
     end
 
     subgraph "Web Services"
@@ -28,6 +23,10 @@ graph TB
         Enrollment[📝 Enrollment Service]
     end
 
+    subgraph "Worker Services"
+        WorkerSvc[⚙️ Worker Service<br/>GetJobs / SubmitResult / RenewLease]
+    end
+
     Database[(🗄️ Database)]
 
     WebAPI --> Dashboard
@@ -35,32 +34,29 @@ graph TB
     WebAPI --> User
     WebAPI --> Enrollment
 
-    WorkerAPI --> Dispatcher
+    WorkerAPI --> WorkerSvc
 
     Scheduler --> Database
-    Dispatcher --> Database
+    WorkerSvc --> Database
     LeaseReaper --> Database
     Ingest --> Database
-
-    StreamHealth -.-> WorkerAPI
     WorkerInactivity --> Database
-    PKI --> Database
 ```
 
 ## Dual API Architecture
 
 ### Worker API (:8081)
-- **Protocol**: Connect gRPC over HTTP/2
-- **Authentication**: mTLS client certificates
-- **Purpose**: Bidirectional streaming with workers
-- **Services**: Job distribution, result collection, enrollment
+- **Protocol**: Connect RPC over HTTP
+- **Authentication**: Bearer token (`Authorization: Bearer ostk_...`)
+- **Purpose**: Job distribution and result collection via polling
+- **Endpoints**: `GetJobs`, `SubmitResult`, `RenewLease`
 
 ### Web API (:8082)
 - **Protocol**: Connect RPC over HTTP
 - **Authentication**: Session-based (cookies)
 - **TLS**: Enabled by default (self-signed); can be disabled with `WEB_TLS_DISABLE=true`
-- **Purpose**: Frontend integration (also serves Enrollment Service)
-- **Services**: Dashboard data, monitor CRUD, user management
+- **Purpose**: Frontend integration and worker enrollment
+- **Services**: Dashboard data, monitor CRUD, user management, enrollment
 
 ## Core Services
 
@@ -75,14 +71,14 @@ graph TB
   - 1% jitter for 10s-30s intervals
   - 10% jitter for >30s intervals (thundering herd protection)
 
-### Dispatcher
-**Purpose**: Manages job leasing and worker communication
+### Worker Service
+**Purpose**: Handles worker job polling and result submission
 
-- **Pull-based model**: Workers request jobs when ready
+- **Pull-based model**: Workers poll `GetJobs` when ready for work
 - **Database-backed leases**: Uses `FOR UPDATE SKIP LOCKED`
-- **Lease management**: 45s timeout with 10s renewal cycles
-- **Region awareness**: Routes jobs to worker region; falls back to `global` jobs when needed
-- **Result handling**: ACK only after durable database commit
+- **Lease management**: Configurable timeout with renewal support
+- **Region awareness**: Routes jobs to worker region; falls back to `global` jobs
+- **Result handling**: Commits results to database before acknowledging
 
 ### Lease Reaper
 **Purpose**: Reclaims expired job leases
@@ -92,19 +88,11 @@ graph TB
 - Enables rapid failure recovery from crashed workers
 - Uses advisory locks to prevent duplicate reaping
 
-### Stream Health Monitor
-**Purpose**: Detects dead worker connections
-
-- Checks every 15 seconds; pings workers that haven't been pinged recently (≈30s)
-- Expects pong responses within timeout
-- Closes stalled streams to free resources
-- Works with Worker Inactivity Monitor for cleanup
-
 ### Worker Inactivity Monitor
 **Purpose**: Maintains worker registry health
 
-- Monitors worker heartbeats and last-seen timestamps
-- Marks inactive workers based on configurable thresholds
+- Monitors worker heartbeats via `last_seen_at` timestamps
+- Marks workers as inactive based on configurable thresholds
 - Updates worker status for dashboard visibility
 - Coordinates with lease reaper for job reassignment
 
@@ -115,16 +103,6 @@ graph TB
 - Uses UPSERT by `(run_id, event_at)` for idempotency
 - Enables safe retries when jobs are re-executed
 - Triggers continuous aggregate updates
-
-### PKI Manager
-**Purpose**: Certificate lifecycle management
-
-- Issues mTLS certificates for worker authentication
-- Stores CA and certificates securely:
-  - `~/.openseer/ca.pem` (user mode)
-  - `/var/lib/openseer/ca.pem` (system mode)
-- Handles certificate renewal and revocation
-- Manages enrollment token validation
 
 ## Web Services
 
@@ -147,10 +125,10 @@ graph TB
 - Account lifecycle management
 
 ### Enrollment Service
-- Worker registration and certificate issuance
-- Cluster token validation
+- Worker registration with cluster token validation
+- API token generation and distribution (`ostk_...` format)
+- Token renewal and revocation support
 - Worker capability registration
-- Bootstrap secret distribution
 
 ## Correctness Guarantees
 
@@ -167,9 +145,9 @@ graph TB
 - **Leader election**: Only one scheduler creates jobs
 
 ### Result Durability
-- **ACK after commit**: Only acknowledge durable writes
+- **Commit before ACK**: Only acknowledge durable writes
 - **Idempotent ingest**: UPSERT by `(run_id, event_at)` allows retries
-- **Best-effort streaming**: Lease expiry handles failures
+- **Lease expiry fallback**: Handles worker failures gracefully
 
 ## Data Model
 
@@ -224,11 +202,11 @@ graph TB
 
 ## Security
 
-### mTLS for Workers
-- Client certificate authentication
-- Certificate-based worker identity
-- Secure enrollment with cluster tokens
-- CA certificate distribution
+### Token Authentication for Workers
+- Bearer token authentication (`Authorization: Bearer ostk_...`)
+- Token hash stored in database for validation
+- Secure token generation with cryptographic randomness
+- Token renewal and revocation support
 
 ### Session Authentication for Web
 - Cookie-based sessions
@@ -236,8 +214,3 @@ graph TB
 - Secure session storage
 - Token format: `tokenId.signature` (HMAC-SHA256 over tokenId with `BETTER_AUTH_SECRET`)
 - Session lookup against `web/migrations/auth/schema.sql` tables (`session`, `user`)
-
-### Certificate Storage
-- Secure file permissions (0600 for private keys)
-- Appropriate data directories based on user context
-- Certificate expiry tracking and renewal
