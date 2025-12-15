@@ -769,7 +769,7 @@ func TestDuplicateJobPrevention(t *testing.T) {
 
 	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
 		Regions:    []string{"us-east-1"},
-		IntervalMs: 1000,
+		IntervalMs: 60000,
 		TimeoutMs:  500,
 	})
 
