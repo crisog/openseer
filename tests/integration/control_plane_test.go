@@ -1123,3 +1123,62 @@ func TestInvalidWorkerOperations(t *testing.T) {
 	require.Equal(t, "done", completedJobs[0].Status)
 	require.Equal(t, worker1ID, completedJobs[0].WorkerID.String)
 }
+
+func TestSchedulerHighFrequencyMonitor(t *testing.T) {
+	t.Parallel()
+
+	env := helpers.SetupControlPlane(t)
+	env.StartBackgroundServices()
+
+	ctx := context.Background()
+
+	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
+		Regions:    []string{"us-east-1"},
+		IntervalMs: 1000,
+		TimeoutMs:  500,
+	})
+
+	require.Eventually(t, func() bool {
+		count, err := env.Queries.CountJobsForMonitor(ctx, monitor.ID)
+		if err != nil {
+			return false
+		}
+		return count >= 1
+	}, 3*time.Second, 100*time.Millisecond, "first job should be created")
+
+	_, err := env.TestDB.DB.ExecContext(ctx, `
+		UPDATE app.jobs SET status = 'done' WHERE monitor_id = $1
+	`, monitor.ID)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		count, err := env.Queries.CountJobsForMonitor(ctx, monitor.ID)
+		if err != nil {
+			return false
+		}
+		return count >= 2
+	}, 3*time.Second, 100*time.Millisecond, "second job should be created after first completes")
+
+	_, err = env.TestDB.DB.ExecContext(ctx, `
+		UPDATE app.jobs SET status = 'done' WHERE monitor_id = $1
+	`, monitor.ID)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		count, err := env.Queries.CountJobsForMonitor(ctx, monitor.ID)
+		if err != nil {
+			return false
+		}
+		return count >= 3
+	}, 3*time.Second, 100*time.Millisecond, "third job should be created - proves 1s interval works")
+
+	jobs, err := env.Queries.GetJobsForMonitor(ctx, monitor.ID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(jobs), 3, "should have at least 3 jobs for 1-second interval monitor")
+
+	for i := 1; i < len(jobs); i++ {
+		timeDiff := jobs[i-1].ScheduledAt.Sub(jobs[i].ScheduledAt)
+		require.InDelta(t, 1*time.Second, timeDiff, float64(500*time.Millisecond),
+			"jobs should be scheduled ~1 second apart (got %v)", timeDiff)
+	}
+}
