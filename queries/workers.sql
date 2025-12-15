@@ -94,3 +94,13 @@ SELECT
     healthy_workers
 FROM region_stats
 ORDER BY region;
+
+-- name: GetWorkerByTokenHash :one
+SELECT * FROM app.workers
+WHERE token_hash = $1
+  AND status IN ('enrolled', 'active');
+
+-- name: SetWorkerToken :exec
+UPDATE app.workers
+SET token_hash = $1
+WHERE id = $2;

@@ -63,7 +63,7 @@ INSERT INTO app.workers (
 ) VALUES (
     $1, $2, $3, $4, NOW(), NOW(), 'enrolled', $5
 )
-RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason
+RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason, token_hash
 `
 
 type EnrollWorkerParams struct {
@@ -95,12 +95,13 @@ func (q *Queries) EnrollWorker(ctx context.Context, arg *EnrollWorkerParams) (*A
 		&i.CertificateExpiresAt,
 		&i.RevokedAt,
 		&i.RevokedReason,
+		&i.TokenHash,
 	)
 	return &i, err
 }
 
 const getActiveWorkers = `-- name: GetActiveWorkers :many
-SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason, token_hash FROM app.workers
 WHERE status = 'active'
 AND last_seen_at >= NOW() - INTERVAL '1 minute'
 ORDER BY region, id
@@ -127,6 +128,7 @@ func (q *Queries) GetActiveWorkers(ctx context.Context) ([]*AppWorker, error) {
 			&i.CertificateExpiresAt,
 			&i.RevokedAt,
 			&i.RevokedReason,
+			&i.TokenHash,
 		); err != nil {
 			return nil, err
 		}
@@ -142,7 +144,7 @@ func (q *Queries) GetActiveWorkers(ctx context.Context) ([]*AppWorker, error) {
 }
 
 const getWorkerByID = `-- name: GetWorkerByID :one
-SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason, token_hash FROM app.workers
 WHERE id = $1
 `
 
@@ -161,6 +163,33 @@ func (q *Queries) GetWorkerByID(ctx context.Context, id string) (*AppWorker, err
 		&i.CertificateExpiresAt,
 		&i.RevokedAt,
 		&i.RevokedReason,
+		&i.TokenHash,
+	)
+	return &i, err
+}
+
+const getWorkerByTokenHash = `-- name: GetWorkerByTokenHash :one
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason, token_hash FROM app.workers
+WHERE token_hash = $1
+  AND status IN ('enrolled', 'active')
+`
+
+func (q *Queries) GetWorkerByTokenHash(ctx context.Context, tokenHash sql.NullString) (*AppWorker, error) {
+	row := q.db.QueryRowContext(ctx, getWorkerByTokenHash, tokenHash)
+	var i AppWorker
+	err := row.Scan(
+		&i.ID,
+		&i.Region,
+		&i.Version,
+		&i.LastSeenAt,
+		&i.RegisteredAt,
+		&i.Status,
+		&i.Hostname,
+		&i.EnrolledAt,
+		&i.CertificateExpiresAt,
+		&i.RevokedAt,
+		&i.RevokedReason,
+		&i.TokenHash,
 	)
 	return &i, err
 }
@@ -246,7 +275,7 @@ func (q *Queries) ListRegionHealth(ctx context.Context) ([]*ListRegionHealthRow,
 }
 
 const listWorkers = `-- name: ListWorkers :many
-SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason, token_hash FROM app.workers
 WHERE ($1::TEXT IS NULL OR region = $1)
   AND ($2::TEXT IS NULL OR status = $2)
 ORDER BY enrolled_at DESC
@@ -286,6 +315,7 @@ func (q *Queries) ListWorkers(ctx context.Context, arg *ListWorkersParams) ([]*A
 			&i.CertificateExpiresAt,
 			&i.RevokedAt,
 			&i.RevokedReason,
+			&i.TokenHash,
 		); err != nil {
 			return nil, err
 		}
@@ -322,7 +352,7 @@ ON CONFLICT (id)
 DO UPDATE SET
     last_seen_at = NOW(),
     status = 'active'
-RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason
+RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason, token_hash
 `
 
 type RegisterWorkerParams struct {
@@ -346,6 +376,7 @@ func (q *Queries) RegisterWorker(ctx context.Context, arg *RegisterWorkerParams)
 		&i.CertificateExpiresAt,
 		&i.RevokedAt,
 		&i.RevokedReason,
+		&i.TokenHash,
 	)
 	return &i, err
 }
@@ -354,7 +385,7 @@ const renewWorkerCertificate = `-- name: RenewWorkerCertificate :one
 UPDATE app.workers
 SET certificate_expires_at = $1, last_seen_at = NOW()
 WHERE id = $2
-RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason
+RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, certificate_expires_at, revoked_at, revoked_reason, token_hash
 `
 
 type RenewWorkerCertificateParams struct {
@@ -377,6 +408,7 @@ func (q *Queries) RenewWorkerCertificate(ctx context.Context, arg *RenewWorkerCe
 		&i.CertificateExpiresAt,
 		&i.RevokedAt,
 		&i.RevokedReason,
+		&i.TokenHash,
 	)
 	return &i, err
 }
@@ -394,6 +426,22 @@ type RevokeWorkerParams struct {
 
 func (q *Queries) RevokeWorker(ctx context.Context, arg *RevokeWorkerParams) error {
 	_, err := q.db.ExecContext(ctx, revokeWorker, arg.RevokedReason, arg.ID)
+	return err
+}
+
+const setWorkerToken = `-- name: SetWorkerToken :exec
+UPDATE app.workers
+SET token_hash = $1
+WHERE id = $2
+`
+
+type SetWorkerTokenParams struct {
+	TokenHash sql.NullString `json:"token_hash"`
+	ID        string         `json:"id"`
+}
+
+func (q *Queries) SetWorkerToken(ctx context.Context, arg *SetWorkerTokenParams) error {
+	_, err := q.db.ExecContext(ctx, setWorkerToken, arg.TokenHash, arg.ID)
 	return err
 }
 

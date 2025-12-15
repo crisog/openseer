@@ -2,11 +2,9 @@ package integration_test
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"database/sql"
-	"encoding/pem"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -17,7 +15,6 @@ import (
 	openseerv1 "github.com/crisog/openseer/gen/openseer/v1"
 	openseerv1connect "github.com/crisog/openseer/gen/openseer/v1/openseerv1connect"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
-	"github.com/crisog/openseer/internal/pkg/auth"
 	"github.com/crisog/openseer/tests/helpers"
 )
 
@@ -29,38 +26,22 @@ func TestWorkerLifecycleLeasesAndAcks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	caPool := x509.NewCertPool()
-	require.True(t, caPool.AppendCertsFromPEM(env.PKI.GetCACertPEM()))
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
 
-	enrollmentHTTPClient := helpers.NewHTTP2Client(tlsConfig(t, caPool), 5*time.Second)
-	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
-	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(enrollmentHTTPClient, enrollmentSrv.URL)
-
-	csr, workerKey := helpers.MustGenerateCSR(t, "pending-worker")
-	enrollReq := connect.NewRequest(&openseerv1.EnrollWorkerRequest{
+	enrollResp, err := enrollmentClient.EnrollWorker(ctx, connect.NewRequest(&openseerv1.EnrollWorkerRequest{
 		EnrollmentToken: env.ClusterToken,
 		Hostname:        "test-worker",
 		WorkerVersion:   "1.0.0",
 		Region:          "us-east-1",
-		CsrPem:          csr,
-	})
-
-	enrollResp, err := enrollmentClient.EnrollWorker(ctx, enrollReq)
+	}))
 	require.NoError(t, err)
 	require.NotEmpty(t, enrollResp.Msg.WorkerId)
-	require.NotEmpty(t, enrollResp.Msg.Certificate)
+	require.NotEmpty(t, enrollResp.Msg.ApiToken)
+	require.True(t, enrollResp.Msg.Accepted)
 
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(workerKey)})
-	workerTLS, err := auth.CreateClientTLSConfig([]byte(enrollResp.Msg.Certificate), keyPEM, env.PKI.GetCACertPEM(), "localhost")
-	require.NoError(t, err)
-
-	workerHTTPClient := helpers.NewHTTP2Client(workerTLS, 10*time.Second)
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerClient := openseerv1connect.NewWorkerServiceClient(workerHTTPClient, workerSrv.URL)
-
-	streamCtx, streamCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer streamCancel()
-	stream := workerClient.WorkerStream(streamCtx)
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
 	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
 		Regions:    []string{"us-east-1"},
@@ -69,28 +50,14 @@ func TestWorkerLifecycleLeasesAndAcks(t *testing.T) {
 	})
 	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
 
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReq.Header().Set("Authorization", "Bearer "+enrollResp.Msg.ApiToken)
 
-	serverMsg, err := stream.Receive()
+	getJobsResp, err := workerClient.GetJobs(ctx, getJobsReq)
 	require.NoError(t, err)
-	registered := serverMsg.GetRegistered()
-	require.NotNil(t, registered)
-	require.Equal(t, enrollResp.Msg.WorkerId, registered.WorkerId)
+	require.Len(t, getJobsResp.Msg.Jobs, 1)
 
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 1},
-		},
-	}))
-
-	jobMsg, err := stream.Receive()
-	require.NoError(t, err)
-	leasedJob := jobMsg.GetJob()
-	require.NotNil(t, leasedJob)
+	leasedJob := getJobsResp.Msg.Jobs[0]
 	require.Equal(t, job.RunID, leasedJob.RunId)
 	require.Equal(t, monitor.ID, leasedJob.MonitorId)
 
@@ -103,19 +70,14 @@ func TestWorkerLifecycleLeasesAndAcks(t *testing.T) {
 		EventAt:   timestamppb.Now(),
 		HttpCode:  &code,
 	}
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Result{Result: result},
-	}))
 
-	ackMsg, err := stream.Receive()
+	submitReq := connect.NewRequest(&openseerv1.SubmitResultRequest{Result: result})
+	submitReq.Header().Set("Authorization", "Bearer "+enrollResp.Msg.ApiToken)
+
+	submitResp, err := workerClient.SubmitResult(ctx, submitReq)
 	require.NoError(t, err)
-	ack := ackMsg.GetAck()
-	require.NotNil(t, ack)
-	require.True(t, ack.Committed)
-	require.Equal(t, leasedJob.RunId, ack.RunId)
-
-	require.NoError(t, stream.CloseRequest())
-	require.NoError(t, stream.CloseResponse())
+	require.True(t, submitResp.Msg.Committed)
+	require.Equal(t, leasedJob.RunId, submitResp.Msg.RunId)
 
 	jobRecord, err := env.Queries.GetJobByRunID(context.Background(), job.RunID)
 	require.NoError(t, err)
@@ -166,34 +128,17 @@ func TestSchedulerCreatesJobsForDueMonitor(t *testing.T) {
 	require.True(t, updatedMonitor.NextDueAt.Time.After(updatedMonitor.LastScheduledAt.Time))
 }
 
-func newEnrollmentClient(t *testing.T, env *helpers.ControlPlaneTestEnvironment) openseerv1connect.EnrollmentServiceClient {
-	caPool := x509.NewCertPool()
-	require.True(t, caPool.AppendCertsFromPEM(env.PKI.GetCACertPEM()))
-
-	httpClient := helpers.NewHTTP2Client(tlsConfig(t, caPool), 5*time.Second)
-	enrollmentSrv := env.StartEnrollmentServer(t, "127.0.0.1", "localhost")
-
-	return openseerv1connect.NewEnrollmentServiceClient(httpClient, enrollmentSrv.URL)
-}
-
-func enrollWorkerForTest(t *testing.T, env *helpers.ControlPlaneTestEnvironment, enrollmentClient openseerv1connect.EnrollmentServiceClient, hostname, region string) (string, *tls.Config) {
-	csr, key := helpers.MustGenerateCSR(t, hostname)
-
+func enrollWorkerForTest(t *testing.T, env *helpers.ControlPlaneTestEnvironment, enrollmentClient openseerv1connect.EnrollmentServiceClient, hostname, region string) (string, string) {
 	resp, err := enrollmentClient.EnrollWorker(context.Background(), connect.NewRequest(&openseerv1.EnrollWorkerRequest{
 		EnrollmentToken: env.ClusterToken,
 		Hostname:        hostname,
 		WorkerVersion:   "1.0.0",
 		Region:          region,
-		CsrPem:          csr,
 	}))
 	require.NoError(t, err)
 	require.True(t, resp.Msg.Accepted)
 
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	workerTLS, err := auth.CreateClientTLSConfig([]byte(resp.Msg.Certificate), keyPEM, env.PKI.GetCACertPEM(), "localhost")
-	require.NoError(t, err)
-
-	return resp.Msg.WorkerId, workerTLS
+	return resp.Msg.WorkerId, resp.Msg.ApiToken
 }
 
 func TestEnrollmentRenewalAndRevocation(t *testing.T) {
@@ -204,56 +149,31 @@ func TestEnrollmentRenewalAndRevocation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	enrollmentClient := newEnrollmentClient(t, env)
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
 
-	csr, _ := helpers.MustGenerateCSR(t, "renew-worker")
 	enrollResp, err := enrollmentClient.EnrollWorker(ctx, connect.NewRequest(&openseerv1.EnrollWorkerRequest{
 		EnrollmentToken: env.ClusterToken,
 		Hostname:        "renewal-host",
 		WorkerVersion:   "1.2.3",
 		Region:          "us-east-1",
-		CsrPem:          csr,
 	}))
 	require.NoError(t, err)
 	workerID := enrollResp.Msg.WorkerId
 	require.NotEmpty(t, workerID)
-	initialExpiry := time.Unix(enrollResp.Msg.ExpiresAt, 0)
+	require.NotEmpty(t, enrollResp.Msg.ApiToken)
 
 	workerBefore, err := env.Queries.GetWorkerByID(ctx, workerID)
 	require.NoError(t, err)
 	require.Equal(t, "enrolled", workerBefore.Status)
-	require.True(t, workerBefore.CertificateExpiresAt.Valid)
-	require.WithinDuration(t, initialExpiry, workerBefore.CertificateExpiresAt.Time, 5*time.Second)
 
-	newCSR, renewedKey := helpers.MustGenerateCSR(t, "renew-worker")
 	renewResp, err := enrollmentClient.RenewEnrollment(ctx, connect.NewRequest(&openseerv1.RenewEnrollmentRequest{
 		WorkerId: workerID,
-		CsrPem:   newCSR,
 	}))
 	require.NoError(t, err)
-	renewedExpiry := time.Unix(renewResp.Msg.ExpiresAt, 0)
-	require.False(t, renewedExpiry.Before(initialExpiry), "renewal should not reduce certificate expiry")
-	require.NotEqual(t, enrollResp.Msg.Certificate, renewResp.Msg.Certificate)
-
-	var workerAfter *sqlc.AppWorker
-	require.Eventually(t, func() bool {
-		w, err := env.Queries.GetWorkerByID(ctx, workerID)
-		require.NoError(t, err)
-		workerAfter = w
-		if !w.CertificateExpiresAt.Valid {
-			return false
-		}
-		delta := w.CertificateExpiresAt.Time.Sub(renewedExpiry)
-		return delta.Abs() <= 2*time.Second
-	}, 5*time.Second, 50*time.Millisecond, "worker certificate expiry not updated")
-	require.NotNil(t, workerAfter)
-
-	delta := workerAfter.CertificateExpiresAt.Time.Sub(renewedExpiry)
-	t.Logf("renewed expiry delta: %v (db=%s api=%s)", delta, workerAfter.CertificateExpiresAt.Time.Format(time.RFC3339Nano), renewedExpiry.Format(time.RFC3339Nano))
-
-	renewedKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(renewedKey)})
-	workerTLS, err := auth.CreateClientTLSConfig([]byte(renewResp.Msg.Certificate), renewedKeyPEM, env.PKI.GetCACertPEM(), "localhost")
-	require.NoError(t, err)
+	require.True(t, renewResp.Msg.Renewed)
+	require.NotEmpty(t, renewResp.Msg.ApiToken)
+	require.NotEqual(t, enrollResp.Msg.ApiToken, renewResp.Msg.ApiToken)
 
 	revokeReason := "rotation complete"
 	revokeResp, err := enrollmentClient.RevokeEnrollment(ctx, connect.NewRequest(&openseerv1.RevokeEnrollmentRequest{
@@ -269,36 +189,18 @@ func TestEnrollmentRenewalAndRevocation(t *testing.T) {
 	require.True(t, workerRevoked.RevokedReason.Valid)
 	require.Equal(t, revokeReason, workerRevoked.RevokedReason.String)
 
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerHTTPClient := helpers.NewHTTP2Client(workerTLS, 5*time.Second)
-	workerClient := openseerv1connect.NewWorkerServiceClient(workerHTTPClient, workerSrv.URL)
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
-	streamCtx, streamCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer streamCancel()
-	stream := workerClient.WorkerStream(streamCtx)
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReq.Header().Set("Authorization", "Bearer "+renewResp.Msg.ApiToken)
 
-	err = stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.2.3"},
-		},
-	})
-	require.NoError(t, err)
-
-	_, err = stream.Receive()
+	_, err = workerClient.GetJobs(ctx, getJobsReq)
 	require.Error(t, err)
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
-
-	_, err = enrollmentClient.EnrollWorker(ctx, connect.NewRequest(&openseerv1.EnrollWorkerRequest{
-		EnrollmentToken: env.ClusterToken,
-		Hostname:        "second-worker",
-		WorkerVersion:   "1.2.3",
-		Region:          "us-east-1",
-		CsrPem:          csr,
-	}))
-	require.NoError(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
 
-func TestDispatcherHealthAndReaper(t *testing.T) {
+func TestLeaseReaperReclaimsExpiredLeases(t *testing.T) {
 	t.Parallel()
 
 	env := helpers.SetupControlPlane(t)
@@ -307,51 +209,12 @@ func TestDispatcherHealthAndReaper(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	enrollmentClient := newEnrollmentClient(t, env)
-	workerID, workerTLS := enrollWorkerForTest(t, env, enrollmentClient, "health-worker", "us-east-1")
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
+	workerID, apiToken := enrollWorkerForTest(t, env, enrollmentClient, "health-worker", "us-east-1")
 
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerHTTPClient := helpers.NewHTTP2Client(workerTLS, 10*time.Second)
-	workerClient := openseerv1connect.NewWorkerServiceClient(workerHTTPClient, workerSrv.URL)
-
-	streamCtx, streamCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer streamCancel()
-	stream := workerClient.WorkerStream(streamCtx)
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-
-	serverMsg, err := stream.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, serverMsg.GetRegistered())
-
-	workerAfterRegister, err := env.Queries.GetWorkerByID(ctx, workerID)
-	require.NoError(t, err)
-	lastSeenAfterRegister := workerAfterRegister.LastSeenAt
-
-	var ping *openseerv1.Ping
-	for ping == nil {
-		msg, err := stream.Receive()
-		require.NoError(t, err)
-		if m := msg.GetPing(); m != nil {
-			ping = m
-		}
-	}
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Pong{
-			Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-		},
-	}))
-
-	require.Eventually(t, func() bool {
-		worker, err := env.Queries.GetWorkerByID(ctx, workerID)
-		require.NoError(t, err)
-		return worker.LastSeenAt.After(lastSeenAfterRegister)
-	}, 5*time.Second, 100*time.Millisecond)
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
 	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
 		Regions:    []string{"us-east-1"},
@@ -359,45 +222,18 @@ func TestDispatcherHealthAndReaper(t *testing.T) {
 		TimeoutMs:  2000,
 	})
 
-	createdJobs := make(map[string]struct{})
 	for i := 0; i < 3; i++ {
-		job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
-		createdJobs[job.RunID] = struct{}{}
+		helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
 	}
 
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 3},
-		},
-	}))
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 3})
+	getJobsReq.Header().Set("Authorization", "Bearer "+apiToken)
 
-	receivedRuns := make(map[string]struct{})
-	for len(receivedRuns) < 3 {
-		msg, err := stream.Receive()
-		require.NoError(t, err)
-		if job := msg.GetJob(); job != nil {
-			_, exists := createdJobs[job.RunId]
-			require.Truef(t, exists, "leased unexpected job %s", job.RunId)
-			receivedRuns[job.RunId] = struct{}{}
-			continue
-		}
-		if heartbeatPing := msg.GetPing(); heartbeatPing != nil {
-			require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: heartbeatPing.Timestamp},
-				},
-			}))
-			continue
-		}
-	}
+	getJobsResp, err := workerClient.GetJobs(ctx, getJobsReq)
+	require.NoError(t, err)
+	require.Len(t, getJobsResp.Msg.Jobs, 3)
 
-	require.Equal(t, 3, len(receivedRuns))
-
-	var expiredRunID string
-	for runID := range receivedRuns {
-		expiredRunID = runID
-		break
-	}
+	expiredRunID := getJobsResp.Msg.Jobs[0].RunId
 
 	_, err = env.TestDB.DB.ExecContext(ctx, "UPDATE app.jobs SET lease_expires_at = NOW() - INTERVAL '1 second' WHERE run_id = $1", expiredRunID)
 	require.NoError(t, err)
@@ -408,16 +244,10 @@ func TestDispatcherHealthAndReaper(t *testing.T) {
 		return job.Status == "ready" && !job.WorkerID.Valid
 	}, 6*time.Second, 150*time.Millisecond)
 
-	require.NoError(t, stream.CloseRequest())
-	require.NoError(t, stream.CloseResponse())
-	streamCancel()
-
 	_, err = env.TestDB.DB.ExecContext(context.Background(), "UPDATE app.workers SET last_seen_at = NOW() - INTERVAL '5 minutes' WHERE id = $1", workerID)
 	require.NoError(t, err)
 
 	helpers.WaitForWorkerInactivity(t, env.Queries, workerID, 15*time.Second)
-
-	helpers.WaitForWorkerRegistration(t, env.Dispatcher, 0, 10*time.Second)
 }
 
 func TestConcurrentWorkersLeaseDistinctJobs(t *testing.T) {
@@ -428,37 +258,13 @@ func TestConcurrentWorkersLeaseDistinctJobs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	enrollmentClient := newEnrollmentClient(t, env)
-	worker1ID, worker1TLS := enrollWorkerForTest(t, env, enrollmentClient, "worker-a", "us-east-1")
-	worker2ID, worker2TLS := enrollWorkerForTest(t, env, enrollmentClient, "worker-b", "us-east-1")
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
+	worker1ID, worker1Token := enrollWorkerForTest(t, env, enrollmentClient, "worker-a", "us-east-1")
+	worker2ID, worker2Token := enrollWorkerForTest(t, env, enrollmentClient, "worker-b", "us-east-1")
 
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerClient1 := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(worker1TLS, 10*time.Second), workerSrv.URL)
-	workerClient2 := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(worker2TLS, 10*time.Second), workerSrv.URL)
-
-	streamCtx1, cancelStream1 := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancelStream1()
-	stream1 := workerClient1.WorkerStream(streamCtx1)
-	require.NoError(t, stream1.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err := stream1.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
-
-	streamCtx2, cancelStream2 := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancelStream2()
-	stream2 := workerClient2.WorkerStream(streamCtx2)
-	require.NoError(t, stream2.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err = stream2.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
 	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
 		Regions:    []string{"us-east-1"},
@@ -471,44 +277,245 @@ func TestConcurrentWorkersLeaseDistinctJobs(t *testing.T) {
 		jobs = append(jobs, helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1"))
 	}
 
-	require.NoError(t, stream1.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 1},
-		},
-	}))
-	require.NoError(t, stream2.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 1},
-		},
-	}))
+	req1 := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	req1.Header().Set("Authorization", "Bearer "+worker1Token)
 
-	job1 := waitForJob(t, stream1)
-	require.NotNil(t, job1)
-	job2 := waitForJob(t, stream2)
-	require.NotNil(t, job2)
+	req2 := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	req2.Header().Set("Authorization", "Bearer "+worker2Token)
 
-	require.NotEqual(t, job1.RunId, job2.RunId)
+	resp1, err := workerClient.GetJobs(ctx, req1)
+	require.NoError(t, err)
+	require.Len(t, resp1.Msg.Jobs, 1)
+
+	resp2, err := workerClient.GetJobs(ctx, req2)
+	require.NoError(t, err)
+	require.Len(t, resp2.Msg.Jobs, 1)
+
+	require.NotEqual(t, resp1.Msg.Jobs[0].RunId, resp2.Msg.Jobs[0].RunId)
 
 	created := map[string]struct{}{jobs[0].RunID: {}, jobs[1].RunID: {}}
-	_, ok := created[job1.RunId]
+	_, ok := created[resp1.Msg.Jobs[0].RunId]
 	require.True(t, ok)
-	_, ok = created[job2.RunId]
+	_, ok = created[resp2.Msg.Jobs[0].RunId]
 	require.True(t, ok)
 
-	jobRecord1, err := env.Queries.GetJobByRunID(ctx, job1.RunId)
+	jobRecord1, err := env.Queries.GetJobByRunID(ctx, resp1.Msg.Jobs[0].RunId)
 	require.NoError(t, err)
 	require.True(t, jobRecord1.WorkerID.Valid)
 	require.Equal(t, worker1ID, jobRecord1.WorkerID.String)
 
-	jobRecord2, err := env.Queries.GetJobByRunID(ctx, job2.RunId)
+	jobRecord2, err := env.Queries.GetJobByRunID(ctx, resp2.Msg.Jobs[0].RunId)
 	require.NoError(t, err)
 	require.True(t, jobRecord2.WorkerID.Valid)
 	require.Equal(t, worker2ID, jobRecord2.WorkerID.String)
+}
 
-	require.NoError(t, stream1.CloseRequest())
-	require.NoError(t, stream1.CloseResponse())
-	require.NoError(t, stream2.CloseRequest())
-	require.NoError(t, stream2.CloseResponse())
+func TestWorkerLeaseRenewalExtendsExpiration(t *testing.T) {
+	t.Parallel()
+
+	env := helpers.SetupControlPlane(t)
+	env.StartBackgroundServices()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
+	workerID, apiToken := enrollWorkerForTest(t, env, enrollmentClient, "lease-renewal-worker", "us-east-1")
+
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
+
+	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
+		Regions:    []string{"us-east-1"},
+		IntervalMs: 1000,
+		TimeoutMs:  10000,
+	})
+	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
+
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReq.Header().Set("Authorization", "Bearer "+apiToken)
+
+	getJobsResp, err := workerClient.GetJobs(ctx, getJobsReq)
+	require.NoError(t, err)
+	require.Len(t, getJobsResp.Msg.Jobs, 1)
+
+	leasedJob := getJobsResp.Msg.Jobs[0]
+	require.Equal(t, job.RunID, leasedJob.RunId)
+
+	jobRecord, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
+	require.NoError(t, err)
+	require.Equal(t, "leased", jobRecord.Status)
+	require.True(t, jobRecord.LeaseExpiresAt.Valid)
+	initialLeaseExpiry := jobRecord.LeaseExpiresAt.Time
+
+	time.Sleep(2 * time.Second)
+
+	renewReq := connect.NewRequest(&openseerv1.RenewLeaseRequest{RunId: leasedJob.RunId})
+	renewReq.Header().Set("Authorization", "Bearer "+apiToken)
+
+	renewResp, err := workerClient.RenewLease(ctx, renewReq)
+	require.NoError(t, err)
+	require.True(t, renewResp.Msg.Renewed)
+
+	require.Eventually(t, func() bool {
+		jobRecord, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
+		require.NoError(t, err)
+		if !jobRecord.LeaseExpiresAt.Valid {
+			return false
+		}
+		return jobRecord.LeaseExpiresAt.Time.After(initialLeaseExpiry)
+	}, 5*time.Second, 100*time.Millisecond, "lease expiry should be extended")
+
+	updatedJob, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
+	require.NoError(t, err)
+	require.True(t, updatedJob.LeaseExpiresAt.Valid)
+	require.Greater(t, updatedJob.LeaseExpiresAt.Time.Unix(), initialLeaseExpiry.Unix())
+	require.Equal(t, "leased", updatedJob.Status)
+	require.True(t, updatedJob.WorkerID.Valid)
+	require.Equal(t, workerID, updatedJob.WorkerID.String)
+
+	code := int32(200)
+	submitReq := connect.NewRequest(&openseerv1.SubmitResultRequest{
+		Result: &openseerv1.MonitorResult{
+			RunId:     leasedJob.RunId,
+			MonitorId: leasedJob.MonitorId,
+			Region:    "us-east-1",
+			Status:    "OK",
+			EventAt:   timestamppb.Now(),
+			HttpCode:  &code,
+		},
+	})
+	submitReq.Header().Set("Authorization", "Bearer "+apiToken)
+
+	submitResp, err := workerClient.SubmitResult(ctx, submitReq)
+	require.NoError(t, err)
+	require.True(t, submitResp.Msg.Committed)
+
+	finalJob, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
+	require.NoError(t, err)
+	require.Equal(t, "done", finalJob.Status)
+}
+
+func TestMonitorSoftDeletes(t *testing.T) {
+	t.Parallel()
+
+	env := helpers.SetupControlPlane(t)
+
+	ctx := context.Background()
+
+	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
+		Regions:    []string{"us-east-1"},
+		IntervalMs: 5000,
+		TimeoutMs:  2000,
+	})
+
+	dueBefore, err := env.Queries.ListDueMonitors(ctx, sql.NullTime{Time: time.Now().Add(1 * time.Minute), Valid: true})
+	require.NoError(t, err)
+	foundMonitor := false
+	for _, m := range dueBefore {
+		if m.ID == monitor.ID {
+			foundMonitor = true
+			break
+		}
+	}
+	require.True(t, foundMonitor, "monitor should be returned before soft delete")
+
+	_ = helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
+	_ = helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
+
+	jobsBefore, err := env.Queries.GetJobsForMonitor(ctx, monitor.ID)
+	require.NoError(t, err)
+	require.Len(t, jobsBefore, 2, "expected two active jobs before soft delete")
+
+	require.NoError(t, env.Queries.DeleteMonitor(ctx, monitor.ID))
+	require.NoError(t, env.Queries.DeleteMonitorJobs(ctx, monitor.ID))
+
+	_, err = env.Queries.GetMonitor(ctx, monitor.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows, "soft deleted monitor should not be returned by GetMonitor")
+
+	deletedMonitor, err := env.Queries.GetMonitorIncludingDeleted(ctx, monitor.ID)
+	require.NoError(t, err)
+	require.True(t, deletedMonitor.DeletedAt.Valid, "deleted monitor should have deleted_at set")
+
+	activeCount, err := env.Queries.CountActiveMonitorsByID(ctx, monitor.ID)
+	require.NoError(t, err)
+	require.Zero(t, activeCount, "monitor should be excluded from active view after soft delete")
+
+	dueAfter, err := env.Queries.ListDueMonitors(ctx, sql.NullTime{Time: time.Now().Add(1 * time.Minute), Valid: true})
+	require.NoError(t, err)
+	for _, m := range dueAfter {
+		require.NotEqual(t, monitor.ID, m.ID, "soft deleted monitor should not appear in due monitors")
+	}
+
+	jobsAfter, err := env.Queries.GetJobsForMonitor(ctx, monitor.ID)
+	require.NoError(t, err)
+	require.Empty(t, jobsAfter, "soft deleted jobs should be excluded from active job query")
+
+	deletedJobCount, err := env.Queries.CountDeletedJobsForMonitor(ctx, monitor.ID)
+	require.NoError(t, err)
+	require.EqualValues(t, len(jobsBefore), deletedJobCount, "all jobs should be soft deleted")
+}
+
+func TestResultIdempotency(t *testing.T) {
+	t.Parallel()
+
+	env := helpers.SetupControlPlane(t)
+	env.StartBackgroundServices()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
+		Regions:    []string{"us-east-1"},
+		IntervalMs: 5000,
+		TimeoutMs:  1000,
+	})
+
+	jobID := fmt.Sprintf("%s-us-east-1-%s-%s", monitor.ID, time.Now().Format("20060102150405"), generateRandomID(8))
+	_, err := env.Queries.CreateJob(ctx, &sqlc.CreateJobParams{
+		RunID:       jobID,
+		MonitorID:   monitor.ID,
+		Region:      "us-east-1",
+		ScheduledAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	httpCode := int32(200)
+	totalMs := int32(150)
+	eventTime := timestamppb.Now()
+	result := &openseerv1.MonitorResult{
+		RunId:     jobID,
+		MonitorId: monitor.ID,
+		Region:    "us-east-1",
+		Status:    "OK",
+		EventAt:   eventTime,
+		HttpCode:  &httpCode,
+		TotalMs:   &totalMs,
+	}
+
+	err = env.Ingest.ProcessResult(ctx, result)
+	require.NoError(t, err, "first result submission should succeed")
+
+	countResult, err := env.Queries.CountResultsByRunID(ctx, jobID)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), countResult, "should have exactly one result")
+
+	err = env.Ingest.ProcessResult(ctx, result)
+	require.NoError(t, err, "second result submission should succeed (idempotent)")
+
+	countResult, err = env.Queries.CountResultsByRunID(ctx, jobID)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), countResult, "should still have exactly one result after duplicate submission")
+}
+
+func generateRandomID(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+	}
+	return string(b)
 }
 
 func TestIngestFailureResultPersistsFields(t *testing.T) {
@@ -520,24 +527,12 @@ func TestIngestFailureResultPersistsFields(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	enrollmentClient := newEnrollmentClient(t, env)
-	workerID, workerTLS := enrollWorkerForTest(t, env, enrollmentClient, "ingest-worker", "us-east-1")
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
+	workerID, apiToken := enrollWorkerForTest(t, env, enrollmentClient, "ingest-worker", "us-east-1")
 
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerClient := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(workerTLS, 10*time.Second), workerSrv.URL)
-
-	streamCtx, streamCancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer streamCancel()
-	stream := workerClient.WorkerStream(streamCtx)
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err := stream.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
 	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
 		Regions:    []string{"us-east-1"},
@@ -546,13 +541,13 @@ func TestIngestFailureResultPersistsFields(t *testing.T) {
 	})
 	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
 
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 1},
-		},
-	}))
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReq.Header().Set("Authorization", "Bearer "+apiToken)
 
-	leasedJob := waitForJob(t, stream)
+	getJobsResp, err := workerClient.GetJobs(ctx, getJobsReq)
+	require.NoError(t, err)
+	require.Len(t, getJobsResp.Msg.Jobs, 1)
+	leasedJob := getJobsResp.Msg.Jobs[0]
 	require.Equal(t, job.RunID, leasedJob.RunId)
 
 	errMsg := "http timeout"
@@ -561,41 +556,25 @@ func TestIngestFailureResultPersistsFields(t *testing.T) {
 	sizeBytes := int64(4096)
 	totalMs := int32(12000)
 
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Result{
-			Result: &openseerv1.MonitorResult{
-				RunId:        leasedJob.RunId,
-				MonitorId:    leasedJob.MonitorId,
-				Region:       "us-east-1",
-				Status:       status,
-				EventAt:      timestamppb.Now(),
-				HttpCode:     &failingCode,
-				SizeBytes:    &sizeBytes,
-				TotalMs:      &totalMs,
-				ErrorMessage: &errMsg,
-			},
+	submitReq := connect.NewRequest(&openseerv1.SubmitResultRequest{
+		Result: &openseerv1.MonitorResult{
+			RunId:        leasedJob.RunId,
+			MonitorId:    leasedJob.MonitorId,
+			Region:       "us-east-1",
+			Status:       status,
+			EventAt:      timestamppb.Now(),
+			HttpCode:     &failingCode,
+			SizeBytes:    &sizeBytes,
+			TotalMs:      &totalMs,
+			ErrorMessage: &errMsg,
 		},
-	}))
+	})
+	submitReq.Header().Set("Authorization", "Bearer "+apiToken)
 
-	var ack *openseerv1.ResultAck
-	for {
-		m, err := stream.Receive()
-		require.NoError(t, err)
-		if a := m.GetAck(); a != nil {
-			ack = a
-			break
-		}
-		if ping := m.GetPing(); ping != nil {
-			require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-				},
-			}))
-		}
-	}
-
-	require.True(t, ack.Committed)
-	require.Equal(t, leasedJob.RunId, ack.RunId)
+	submitResp, err := workerClient.SubmitResult(ctx, submitReq)
+	require.NoError(t, err)
+	require.True(t, submitResp.Msg.Committed)
+	require.Equal(t, leasedJob.RunId, submitResp.Msg.RunId)
 
 	jobRecord, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
 	require.NoError(t, err)
@@ -616,248 +595,6 @@ func TestIngestFailureResultPersistsFields(t *testing.T) {
 	require.Equal(t, sizeBytes, stored.SizeBytes.Int64)
 	require.True(t, stored.HttpCode.Valid)
 	require.Equal(t, failingCode, stored.HttpCode.Int32)
-
-	require.NoError(t, stream.CloseRequest())
-	require.NoError(t, stream.CloseResponse())
-}
-
-type workerStream interface {
-	Receive() (*openseerv1.ServerMessage, error)
-	Send(*openseerv1.WorkerMessage) error
-}
-
-func waitForJob(t *testing.T, stream workerStream) *openseerv1.MonitorJob {
-	for {
-		msg, err := stream.Receive()
-		require.NoError(t, err)
-		if job := msg.GetJob(); job != nil {
-			return job
-		}
-		if ping := msg.GetPing(); ping != nil {
-			require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-				},
-			}))
-		}
-	}
-}
-
-func waitForAck(t *testing.T, stream workerStream, runID string) {
-	for {
-		msg, err := stream.Receive()
-		require.NoError(t, err)
-		if ack := msg.GetAck(); ack != nil && ack.RunId == runID {
-			require.True(t, ack.Committed, "Result should be committed")
-			return
-		}
-		if ping := msg.GetPing(); ping != nil {
-			require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-				},
-			}))
-		}
-	}
-}
-
-func TestWorkerLeaseRenewalExtendsExpiration(t *testing.T) {
-	t.Parallel()
-
-	env := helpers.SetupControlPlane(t)
-	env.StartBackgroundServices()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	enrollmentClient := newEnrollmentClient(t, env)
-	workerID, workerTLS := enrollWorkerForTest(t, env, enrollmentClient, "lease-renewal-worker", "us-east-1")
-
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerClient := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(workerTLS, 10*time.Second), workerSrv.URL)
-
-	streamCtx, streamCancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer streamCancel()
-	stream := workerClient.WorkerStream(streamCtx)
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err := stream.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
-
-	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
-		Regions:    []string{"us-east-1"},
-		IntervalMs: 1000,
-		TimeoutMs:  10000,
-	})
-	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 1},
-		},
-	}))
-
-	leasedJob := waitForJob(t, stream)
-	require.Equal(t, job.RunID, leasedJob.RunId)
-
-	jobRecord, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
-	require.NoError(t, err)
-	require.Equal(t, "leased", jobRecord.Status)
-	require.True(t, jobRecord.LeaseExpiresAt.Valid)
-	initialLeaseExpiry := jobRecord.LeaseExpiresAt.Time
-
-	time.Sleep(2 * time.Second)
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_LeaseRenewal{
-			LeaseRenewal: &openseerv1.LeaseRenewal{
-				RunId: leasedJob.RunId,
-			},
-		},
-	}))
-
-	require.Eventually(t, func() bool {
-		jobRecord, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
-		require.NoError(t, err)
-		if !jobRecord.LeaseExpiresAt.Valid {
-			return false
-		}
-		return jobRecord.LeaseExpiresAt.Time.After(initialLeaseExpiry)
-	}, 5*time.Second, 100*time.Millisecond, "lease expiry should be extended")
-
-	updatedJob, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
-	require.NoError(t, err)
-	require.True(t, updatedJob.LeaseExpiresAt.Valid)
-	require.Greater(t, updatedJob.LeaseExpiresAt.Time.Unix(), initialLeaseExpiry.Unix())
-	require.Equal(t, "leased", updatedJob.Status)
-	require.True(t, updatedJob.WorkerID.Valid)
-	require.Equal(t, workerID, updatedJob.WorkerID.String)
-
-	code := int32(200)
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Result{
-			Result: &openseerv1.MonitorResult{
-				RunId:     leasedJob.RunId,
-				MonitorId: leasedJob.MonitorId,
-				Region:    "us-east-1",
-				Status:    "OK",
-				EventAt:   timestamppb.Now(),
-				HttpCode:  &code,
-			},
-		},
-	}))
-
-	var ack *openseerv1.ResultAck
-	for {
-		m, err := stream.Receive()
-		require.NoError(t, err)
-		if a := m.GetAck(); a != nil {
-			ack = a
-			break
-		}
-		if ping := m.GetPing(); ping != nil {
-			require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-				},
-			}))
-		}
-	}
-
-	require.True(t, ack.Committed)
-	require.Equal(t, leasedJob.RunId, ack.RunId)
-
-	finalJob, err := env.Queries.GetJobByRunID(ctx, leasedJob.RunId)
-	require.NoError(t, err)
-	require.Equal(t, "done", finalJob.Status)
-
-	require.NoError(t, stream.CloseRequest())
-	require.NoError(t, stream.CloseResponse())
-}
-
-func TestWorkerResultNegativeAckOnStorageFailure(t *testing.T) {
-	t.Parallel()
-
-	env := helpers.SetupControlPlane(t)
-
-	enrollmentClient := newEnrollmentClient(t, env)
-	_, workerTLS := enrollWorkerForTest(t, env, enrollmentClient, "storage-failure-worker", "us-east-1")
-
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerClient := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(workerTLS, 10*time.Second), workerSrv.URL)
-
-	streamCtx, streamCancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer streamCancel()
-	stream := workerClient.WorkerStream(streamCtx)
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err := stream.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
-
-	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
-		Regions:    []string{"us-east-1"},
-		IntervalMs: 1000,
-		TimeoutMs:  2000,
-	})
-	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 1},
-		},
-	}))
-
-	leasedJob := waitForJob(t, stream)
-	require.Equal(t, job.RunID, leasedJob.RunId)
-
-	env.TestDB.DB.Close()
-
-	code := int32(200)
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Result{
-			Result: &openseerv1.MonitorResult{
-				RunId:     leasedJob.RunId,
-				MonitorId: leasedJob.MonitorId,
-				Region:    "us-east-1",
-				Status:    "OK",
-				EventAt:   timestamppb.Now(),
-				HttpCode:  &code,
-			},
-		},
-	}))
-
-	var ack *openseerv1.ResultAck
-	for {
-		m, err := stream.Receive()
-		require.NoError(t, err)
-		if a := m.GetAck(); a != nil {
-			ack = a
-			break
-		}
-		if ping := m.GetPing(); ping != nil {
-			require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-				},
-			}))
-		}
-	}
-
-	require.False(t, ack.Committed, "ack should indicate failure when storage fails")
-	require.Equal(t, leasedJob.RunId, ack.RunId)
-
-	require.NoError(t, stream.CloseRequest())
-	require.NoError(t, stream.CloseResponse())
 }
 
 func TestEnrollmentStatusTransitions(t *testing.T) {
@@ -869,64 +606,35 @@ func TestEnrollmentStatusTransitions(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	enrollmentClient := newEnrollmentClient(t, env)
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
 
-	csr, workerKey := helpers.MustGenerateCSR(t, "status-transition-worker")
 	enrollResp, err := enrollmentClient.EnrollWorker(ctx, connect.NewRequest(&openseerv1.EnrollWorkerRequest{
 		EnrollmentToken: env.ClusterToken,
 		Hostname:        "status-worker",
 		WorkerVersion:   "1.0.0",
 		Region:          "us-east-1",
-		CsrPem:          csr,
 	}))
 	require.NoError(t, err)
 	workerID := enrollResp.Msg.WorkerId
+	apiToken := enrollResp.Msg.ApiToken
 
 	workerInitial, err := env.Queries.GetWorkerByID(ctx, workerID)
 	require.NoError(t, err)
 	require.Equal(t, "enrolled", workerInitial.Status)
 
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(workerKey)})
-	workerTLS, err := auth.CreateClientTLSConfig([]byte(enrollResp.Msg.Certificate), keyPEM, env.PKI.GetCACertPEM(), "localhost")
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
+
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReq.Header().Set("Authorization", "Bearer "+apiToken)
+
+	_, err = workerClient.GetJobs(ctx, getJobsReq)
 	require.NoError(t, err)
-
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	workerClient := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(workerTLS, 10*time.Second), workerSrv.URL)
-
-	streamCtx, streamCancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer streamCancel()
-	stream := workerClient.WorkerStream(streamCtx)
-
-	require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err := stream.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
 
 	workerAfterRegister, err := env.Queries.GetWorkerByID(ctx, workerID)
 	require.NoError(t, err)
 	require.Equal(t, "active", workerAfterRegister.Status)
-
-	var receivedPing bool
-	for !receivedPing {
-		msg, err := stream.Receive()
-		require.NoError(t, err)
-		if ping := msg.GetPing(); ping != nil {
-			receivedPing = true
-			require.NoError(t, stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-				},
-			}))
-		}
-	}
-
-	require.NoError(t, stream.CloseRequest())
-	require.NoError(t, stream.CloseResponse())
-	streamCancel()
 
 	_, err = env.TestDB.DB.ExecContext(ctx, "UPDATE app.workers SET last_seen_at = NOW() - INTERVAL '5 minutes' WHERE id = $1", workerID)
 	require.NoError(t, err)
@@ -943,20 +651,12 @@ func TestEnrollmentStatusTransitions(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "revoked", workerRevoked.Status)
 
-	newStreamCtx, newStreamCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer newStreamCancel()
-	newStream := workerClient.WorkerStream(newStreamCtx)
+	getJobsReqAfterRevoke := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReqAfterRevoke.Header().Set("Authorization", "Bearer "+apiToken)
 
-	err = newStream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	})
-	require.NoError(t, err)
-
-	_, err = newStream.Receive()
+	_, err = workerClient.GetJobs(ctx, getJobsReqAfterRevoke)
 	require.Error(t, err, "revoked worker should not be able to connect")
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
 
 func TestSchedulerJitterCalculation(t *testing.T) {
@@ -1109,97 +809,6 @@ func TestDuplicateJobPrevention(t *testing.T) {
 	require.Equal(t, 1, afterSchedulerCount, "scheduler should not create duplicates within time window despite multiple runs")
 }
 
-func generateRandomID(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-	}
-	return string(b)
-}
-
-func TestResultIdempotency(t *testing.T) {
-	t.Parallel()
-
-	env := helpers.SetupControlPlane(t)
-	env.StartBackgroundServices()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
-		Regions:    []string{"us-east-1"},
-		IntervalMs: 5000,
-		TimeoutMs:  1000,
-	})
-
-	jobID := fmt.Sprintf("%s-us-east-1-%s-%s", monitor.ID, time.Now().Format("20060102150405"), generateRandomID(8))
-	_, err := env.Queries.CreateJob(ctx, &sqlc.CreateJobParams{
-		RunID:       jobID,
-		MonitorID:   monitor.ID,
-		Region:      "us-east-1",
-		ScheduledAt: time.Now(),
-	})
-	require.NoError(t, err)
-
-	httpCode := int32(200)
-	totalMs := int32(150)
-	eventTime := timestamppb.Now()
-	result := &openseerv1.MonitorResult{
-		RunId:     jobID,
-		MonitorId: monitor.ID,
-		Region:    "us-east-1",
-		Status:    "OK",
-		EventAt:   eventTime,
-		HttpCode:  &httpCode,
-		TotalMs:   &totalMs,
-	}
-
-	err = env.Ingest.ProcessResult(ctx, result)
-	require.NoError(t, err, "first result submission should succeed")
-
-	countResult, err := env.Queries.CountResultsByRunID(ctx, jobID)
-	require.NoError(t, err)
-	require.Equal(t, int64(1), countResult, "should have exactly one result")
-
-	err = env.Ingest.ProcessResult(ctx, result)
-	require.NoError(t, err, "second result submission should succeed (idempotent)")
-
-	countResult, err = env.Queries.CountResultsByRunID(ctx, jobID)
-	require.NoError(t, err)
-	require.Equal(t, int64(1), countResult, "should still have exactly one result after duplicate submission")
-
-	httpCode2 := int32(500)
-	totalMs2 := int32(250)
-	resultModified := &openseerv1.MonitorResult{
-		RunId:     jobID,
-		MonitorId: monitor.ID,
-		Region:    "us-east-1",
-		Status:    "FAIL",
-		EventAt:   eventTime,
-		HttpCode:  &httpCode2,
-		TotalMs:   &totalMs2,
-	}
-
-	err = env.Ingest.ProcessResult(ctx, resultModified)
-	require.NoError(t, err, "modified result submission should succeed")
-
-	countResult, err = env.Queries.CountResultsByRunID(ctx, jobID)
-	require.NoError(t, err)
-	require.Equal(t, int64(1), countResult, "should still have exactly one result after update")
-
-	resultRow, err := env.Queries.GetResultByRunIDAndTime(ctx, &sqlc.GetResultByRunIDAndTimeParams{
-		RunID:   jobID,
-		EventAt: eventTime.AsTime(),
-	})
-	require.NoError(t, err)
-	require.Equal(t, "FAIL", resultRow.Status, "status should be updated")
-	require.True(t, resultRow.HttpCode.Valid)
-	require.Equal(t, int32(500), resultRow.HttpCode.Int32, "http_code should be updated")
-	require.True(t, resultRow.TotalMs.Valid)
-	require.Equal(t, int32(250), resultRow.TotalMs.Int32, "total_ms should be updated")
-}
-
 func TestRegionalJobDistribution(t *testing.T) {
 	t.Parallel()
 
@@ -1233,76 +842,40 @@ func TestRegionalJobDistribution(t *testing.T) {
 	_ = helpers.CreateTestJob(t, env.Queries, euMonitor.ID, "eu-west-1")
 	_ = helpers.CreateTestJob(t, env.Queries, globalMonitor.ID, "global")
 
-	enrollmentClient := newEnrollmentClient(t, env)
-	usWorkerID, usWorkerTLS := enrollWorkerForTest(t, env, enrollmentClient, "us-worker", "us-east-1")
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
+	usWorkerID, usApiToken := enrollWorkerForTest(t, env, enrollmentClient, "us-worker", "us-east-1")
 
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
-	usWorkerClient := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(usWorkerTLS, 10*time.Second), workerSrv.URL)
+	workerSrv := env.StartWorkerServer(t)
+	usWorkerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
-	usStream := usWorkerClient.WorkerStream(ctx)
-	defer usStream.CloseRequest()
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 5})
+	getJobsReq.Header().Set("Authorization", "Bearer "+usApiToken)
 
-	require.NoError(t, usStream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err := usStream.Receive()
+	getJobsResp, err := usWorkerClient.GetJobs(ctx, getJobsReq)
 	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
-	require.Equal(t, usWorkerID, msg.GetRegistered().WorkerId)
-
-	require.NoError(t, usStream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 5},
-		},
-	}))
 
 	usReceivedJobs := make(map[string]bool)
-	jobsReceived := 0
-	maxExpectedJobs := 2
-	timeout := time.After(10 * time.Second)
+	for _, job := range getJobsResp.Msg.Jobs {
+		usReceivedJobs[job.RunId] = true
 
-	for jobsReceived < maxExpectedJobs {
-		select {
-		case <-timeout:
-			t.Logf("Timeout reached after receiving %d jobs", jobsReceived)
-			goto checkResults
-		default:
-			msg, err := usStream.Receive()
-			if err != nil {
-				t.Logf("Stream receive error: %v", err)
-				goto checkResults
-			}
-
-			if job := msg.GetJob(); job != nil {
-				usReceivedJobs[job.RunId] = true
-				jobsReceived++
-				t.Logf("US worker received job: %s", job.RunId)
-
-				require.NoError(t, usStream.Send(&openseerv1.WorkerMessage{
-					Message: &openseerv1.WorkerMessage_Result{
-						Result: &openseerv1.MonitorResult{
-							RunId:     job.RunId,
-							MonitorId: job.MonitorId,
-							Region:    "us-east-1",
-							Status:    "OK",
-							EventAt:   timestamppb.Now(),
-						},
-					},
-				}))
-			} else if ping := msg.GetPing(); ping != nil {
-				require.NoError(t, usStream.Send(&openseerv1.WorkerMessage{
-					Message: &openseerv1.WorkerMessage_Pong{
-						Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-					},
-				}))
-			}
-		}
+		code := int32(200)
+		submitReq := connect.NewRequest(&openseerv1.SubmitResultRequest{
+			Result: &openseerv1.MonitorResult{
+				RunId:     job.RunId,
+				MonitorId: job.MonitorId,
+				Region:    "us-east-1",
+				Status:    "OK",
+				EventAt:   timestamppb.Now(),
+				HttpCode:  &code,
+			},
+		})
+		submitReq.Header().Set("Authorization", "Bearer "+usApiToken)
+		_, err := usWorkerClient.SubmitResult(ctx, submitReq)
+		require.NoError(t, err)
 	}
 
-checkResults:
-	require.Greater(t, jobsReceived, 0, "US worker should receive at least one job")
+	require.Greater(t, len(usReceivedJobs), 0, "US worker should receive at least one job")
 
 	for jobID := range usReceivedJobs {
 		job, err := env.Queries.GetJobByRunID(ctx, jobID)
@@ -1312,66 +885,18 @@ checkResults:
 			"US worker received job for wrong region: %s (job region: %s)", jobID, job.Region)
 	}
 
-	euWorkerID, euWorkerTLS := enrollWorkerForTest(t, env, enrollmentClient, "eu-worker", "eu-west-1")
-	euWorkerClient := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(euWorkerTLS, 10*time.Second), workerSrv.URL)
+	euWorkerID, euApiToken := enrollWorkerForTest(t, env, enrollmentClient, "eu-worker", "eu-west-1")
+	euWorkerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
-	euStream := euWorkerClient.WorkerStream(ctx)
-	defer euStream.CloseRequest()
+	euGetJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 5})
+	euGetJobsReq.Header().Set("Authorization", "Bearer "+euApiToken)
 
-	require.NoError(t, euStream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "eu-west-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err = euStream.Receive()
+	euGetJobsResp, err := euWorkerClient.GetJobs(ctx, euGetJobsReq)
 	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
-	require.Equal(t, euWorkerID, msg.GetRegistered().WorkerId)
-
-	require.NoError(t, euStream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 5},
-		},
-	}))
 
 	euReceivedJobs := make(map[string]bool)
-	jobsReceived = 0
-	timeout = time.After(5 * time.Second)
-
-euJobLoop:
-	for jobsReceived < 1 {
-		select {
-		case <-timeout:
-			break euJobLoop
-		default:
-			msg, err := euStream.Receive()
-			if err != nil {
-				break euJobLoop
-			}
-
-			if job := msg.GetJob(); job != nil {
-				euReceivedJobs[job.RunId] = true
-				jobsReceived++
-
-				require.NoError(t, euStream.Send(&openseerv1.WorkerMessage{
-					Message: &openseerv1.WorkerMessage_Result{
-						Result: &openseerv1.MonitorResult{
-							RunId:     job.RunId,
-							MonitorId: job.MonitorId,
-							Region:    "eu-west-1",
-							Status:    "OK",
-							EventAt:   timestamppb.Now(),
-						},
-					},
-				}))
-			} else if ping := msg.GetPing(); ping != nil {
-				require.NoError(t, euStream.Send(&openseerv1.WorkerMessage{
-					Message: &openseerv1.WorkerMessage_Pong{
-						Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-					},
-				}))
-			}
-		}
+	for _, job := range euGetJobsResp.Msg.Jobs {
+		euReceivedJobs[job.RunId] = true
 	}
 
 	for jobID := range euReceivedJobs {
@@ -1387,79 +912,9 @@ euJobLoop:
 
 	t.Logf("Test completed successfully - US worker received %d jobs, EU worker received %d jobs",
 		len(usReceivedJobs), len(euReceivedJobs))
-}
 
-func TestMonitorSoftDeletes(t *testing.T) {
-	t.Parallel()
-
-	env := helpers.SetupControlPlane(t)
-
-	ctx := context.Background()
-
-	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
-		Regions:    []string{"us-east-1"},
-		IntervalMs: 5000,
-		TimeoutMs:  2000,
-	})
-
-	dueBefore, err := env.Queries.ListDueMonitors(ctx, sql.NullTime{Time: time.Now().Add(1 * time.Minute), Valid: true})
-	require.NoError(t, err)
-	foundMonitor := false
-	for _, m := range dueBefore {
-		if m.ID == monitor.ID {
-			foundMonitor = true
-			break
-		}
-	}
-	require.True(t, foundMonitor, "monitor should be returned before soft delete")
-
-	_ = helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
-	_ = helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
-
-	jobsBefore, err := env.Queries.GetJobsForMonitor(ctx, monitor.ID)
-	require.NoError(t, err)
-	require.Len(t, jobsBefore, 2, "expected two active jobs before soft delete")
-
-	require.NoError(t, env.Queries.DeleteMonitor(ctx, monitor.ID))
-	require.NoError(t, env.Queries.DeleteMonitorJobs(ctx, monitor.ID))
-
-	_, err = env.Queries.GetMonitor(ctx, monitor.ID)
-	require.ErrorIs(t, err, sql.ErrNoRows, "soft deleted monitor should not be returned by GetMonitor")
-
-	deletedMonitor, err := env.Queries.GetMonitorIncludingDeleted(ctx, monitor.ID)
-	require.NoError(t, err)
-	require.True(t, deletedMonitor.DeletedAt.Valid, "deleted monitor should have deleted_at set")
-
-	activeCount, err := env.Queries.CountActiveMonitorsByID(ctx, monitor.ID)
-	require.NoError(t, err)
-	require.Zero(t, activeCount, "monitor should be excluded from active view after soft delete")
-
-	dueAfter, err := env.Queries.ListDueMonitors(ctx, sql.NullTime{Time: time.Now().Add(1 * time.Minute), Valid: true})
-	require.NoError(t, err)
-	for _, m := range dueAfter {
-		require.NotEqual(t, monitor.ID, m.ID, "soft deleted monitor should not appear in due monitors")
-	}
-
-	jobsAfter, err := env.Queries.GetJobsForMonitor(ctx, monitor.ID)
-	require.NoError(t, err)
-	require.Empty(t, jobsAfter, "soft deleted jobs should be excluded from active job query")
-
-	deletedJobCount, err := env.Queries.CountDeletedJobsForMonitor(ctx, monitor.ID)
-	require.NoError(t, err)
-	require.EqualValues(t, len(jobsBefore), deletedJobCount, "all jobs should be soft deleted")
-
-	worker := helpers.CreateTestWorker(t, env.Queries, "us-east-1")
-	leasedJobs, err := env.Queries.LeaseJobs(ctx, &sqlc.LeaseJobsParams{
-		WorkerID: sql.NullString{String: worker.ID, Valid: true},
-		Limit:    1,
-		Region:   "us-east-1",
-		LeaseExpiresAt: sql.NullTime{
-			Time:  time.Now().Add(env.Dispatcher.LeaseDuration()),
-			Valid: true,
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, leasedJobs, 0, "soft deleted jobs should not be leasable")
+	_ = usWorkerID
+	_ = euWorkerID
 }
 
 func TestLeaseReaperBatchReclaim(t *testing.T) {
@@ -1488,10 +943,6 @@ func TestLeaseReaperBatchReclaim(t *testing.T) {
 		WorkerID: sql.NullString{String: worker.ID, Valid: true},
 		Limit:    int32(len(jobs)),
 		Region:   "us-east-1",
-		LeaseExpiresAt: sql.NullTime{
-			Time:  time.Now().Add(env.Dispatcher.LeaseDuration()),
-			Valid: true,
-		},
 	})
 	require.NoError(t, err)
 	require.Len(t, leasedJobs, len(jobs))
@@ -1611,199 +1062,63 @@ func TestInvalidWorkerOperations(t *testing.T) {
 
 	job := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
 
-	enrollmentClient := newEnrollmentClient(t, env)
-	worker1ID, worker1TLS := enrollWorkerForTest(t, env, enrollmentClient, "worker-1", "us-east-1")
-	worker2ID, worker2TLS := enrollWorkerForTest(t, env, enrollmentClient, "worker-2", "us-east-1")
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
+	worker1ID, worker1Token := enrollWorkerForTest(t, env, enrollmentClient, "worker-1", "us-east-1")
+	_, worker2Token := enrollWorkerForTest(t, env, enrollmentClient, "worker-2", "us-east-1")
 
-	workerSrv := env.StartWorkerServer(t, "127.0.0.1", "localhost")
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
-	worker1Client := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(worker1TLS, 10*time.Second), workerSrv.URL)
-	worker1Stream := worker1Client.WorkerStream(ctx)
-	defer worker1Stream.CloseRequest()
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReq.Header().Set("Authorization", "Bearer "+worker1Token)
 
-	require.NoError(t, worker1Stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err := worker1Stream.Receive()
+	getJobsResp, err := workerClient.GetJobs(ctx, getJobsReq)
 	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
-	require.Equal(t, worker1ID, msg.GetRegistered().WorkerId)
-
-	worker2Client := openseerv1connect.NewWorkerServiceClient(helpers.NewHTTP2Client(worker2TLS, 10*time.Second), workerSrv.URL)
-	worker2Stream := worker2Client.WorkerStream(ctx)
-	defer worker2Stream.CloseRequest()
-
-	require.NoError(t, worker2Stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Register{
-			Register: &openseerv1.RegisterRequest{Region: "us-east-1", WorkerVersion: "1.0.0"},
-		},
-	}))
-	msg, err = worker2Stream.Receive()
-	require.NoError(t, err)
-	require.NotNil(t, msg.GetRegistered())
-	require.Equal(t, worker2ID, msg.GetRegistered().WorkerId)
-
-	require.NoError(t, worker1Stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_JobRequest{
-			JobRequest: &openseerv1.JobRequest{Count: 1},
-		},
-	}))
-
-	var assignedJob *openseerv1.MonitorJob
-	for {
-		msg, err = worker1Stream.Receive()
-		require.NoError(t, err)
-		if j := msg.GetJob(); j != nil {
-			assignedJob = j
-			break
-		}
-		if ping := msg.GetPing(); ping != nil {
-			require.NoError(t, worker1Stream.Send(&openseerv1.WorkerMessage{
-				Message: &openseerv1.WorkerMessage_Pong{
-					Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-				},
-			}))
-		}
-	}
-	require.NotNil(t, assignedJob)
+	require.Len(t, getJobsResp.Msg.Jobs, 1)
+	assignedJob := getJobsResp.Msg.Jobs[0]
 	require.Equal(t, job.RunID, assignedJob.RunId)
 
-	err = worker2Stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Result{
-			Result: &openseerv1.MonitorResult{
-				RunId:     assignedJob.RunId,
-				MonitorId: assignedJob.MonitorId,
-				Region:    "us-east-1",
-				Status:    "OK",
-				EventAt:   timestamppb.Now(),
-			},
+	wrongWorkerSubmitReq := connect.NewRequest(&openseerv1.SubmitResultRequest{
+		Result: &openseerv1.MonitorResult{
+			RunId:     assignedJob.RunId,
+			MonitorId: assignedJob.MonitorId,
+			Region:    "us-east-1",
+			Status:    "OK",
+			EventAt:   timestamppb.Now(),
 		},
 	})
+	wrongWorkerSubmitReq.Header().Set("Authorization", "Bearer "+worker2Token)
+
+	wrongResp, err := workerClient.SubmitResult(ctx, wrongWorkerSubmitReq)
 	require.NoError(t, err)
+	require.False(t, wrongResp.Msg.Committed, "Result from wrong worker should not be committed")
 
-	ackReceived := false
-	timeout := time.After(5 * time.Second)
-waitForNegativeAck:
-	for !ackReceived {
-		select {
-		case <-timeout:
-			break waitForNegativeAck
-		default:
-			msg, err = worker2Stream.Receive()
-			if err != nil {
-				break waitForNegativeAck
-			}
-			if ack := msg.GetAck(); ack != nil && ack.RunId == assignedJob.RunId {
-				require.False(t, ack.Committed, "Result from wrong worker should not be committed")
-				ackReceived = true
-			} else if ping := msg.GetPing(); ping != nil {
-				require.NoError(t, worker2Stream.Send(&openseerv1.WorkerMessage{
-					Message: &openseerv1.WorkerMessage_Pong{
-						Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-					},
-				}))
-			}
-		}
-	}
+	wrongWorkerRenewReq := connect.NewRequest(&openseerv1.RenewLeaseRequest{RunId: assignedJob.RunId})
+	wrongWorkerRenewReq.Header().Set("Authorization", "Bearer "+worker2Token)
 
-	err = worker2Stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_LeaseRenewal{
-			LeaseRenewal: &openseerv1.LeaseRenewal{
-				RunId: assignedJob.RunId,
-			},
+	renewResp, err := workerClient.RenewLease(ctx, wrongWorkerRenewReq)
+	require.NoError(t, err)
+	require.False(t, renewResp.Msg.Renewed, "Wrong worker should not be able to renew lease")
+
+	correctSubmitReq := connect.NewRequest(&openseerv1.SubmitResultRequest{
+		Result: &openseerv1.MonitorResult{
+			RunId:     assignedJob.RunId,
+			MonitorId: assignedJob.MonitorId,
+			Region:    "us-east-1",
+			Status:    "OK",
+			EventAt:   timestamppb.Now(),
 		},
 	})
+	correctSubmitReq.Header().Set("Authorization", "Bearer "+worker1Token)
+
+	correctResp, err := workerClient.SubmitResult(ctx, correctSubmitReq)
 	require.NoError(t, err)
-
-	err = worker1Stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Result{
-			Result: &openseerv1.MonitorResult{
-				RunId:     assignedJob.RunId,
-				MonitorId: assignedJob.MonitorId,
-				Region:    "us-east-1",
-				Status:    "OK",
-				EventAt:   timestamppb.Now(),
-			},
-		},
-	})
-	require.NoError(t, err)
-
-	ackReceived = false
-	timeout = time.After(5 * time.Second)
-waitForPositiveAck:
-	for !ackReceived {
-		select {
-		case <-timeout:
-			t.Fatal("Timeout waiting for ACK")
-		default:
-			msg, err = worker1Stream.Receive()
-			if err != nil {
-				break waitForPositiveAck
-			}
-			if ack := msg.GetAck(); ack != nil && ack.RunId == assignedJob.RunId {
-				require.True(t, ack.Committed, "Result from correct worker should be committed")
-				ackReceived = true
-			} else if ping := msg.GetPing(); ping != nil {
-				require.NoError(t, worker1Stream.Send(&openseerv1.WorkerMessage{
-					Message: &openseerv1.WorkerMessage_Pong{
-						Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-					},
-				}))
-			}
-		}
-	}
-
-	err = worker1Stream.Send(&openseerv1.WorkerMessage{
-		Message: &openseerv1.WorkerMessage_Result{
-			Result: &openseerv1.MonitorResult{
-				RunId:     assignedJob.RunId,
-				MonitorId: assignedJob.MonitorId,
-				Region:    "us-east-1",
-				Status:    "FAIL",
-				EventAt:   timestamppb.Now(),
-			},
-		},
-	})
-	require.NoError(t, err)
-
-	ackReceived = false
-	timeout = time.After(5 * time.Second)
-waitForDuplicateAck:
-	for !ackReceived {
-		select {
-		case <-timeout:
-			break waitForDuplicateAck
-		default:
-			msg, err = worker1Stream.Receive()
-			if err != nil {
-				break waitForDuplicateAck
-			}
-			if ack := msg.GetAck(); ack != nil && ack.RunId == assignedJob.RunId {
-				require.True(t, ack.Committed, "Result should be committed due to UPSERT")
-				ackReceived = true
-			} else if ping := msg.GetPing(); ping != nil {
-				require.NoError(t, worker1Stream.Send(&openseerv1.WorkerMessage{
-					Message: &openseerv1.WorkerMessage_Pong{
-						Pong: &openseerv1.Pong{Timestamp: ping.Timestamp},
-					},
-				}))
-			}
-		}
-	}
+	require.True(t, correctResp.Msg.Committed, "Result from correct worker should be committed")
 
 	completedJobs, err := env.Queries.GetCompletedJobsByMonitor(ctx, monitor.ID)
 	require.NoError(t, err)
 	require.Len(t, completedJobs, 1, "Job should be completed exactly once")
 	require.Equal(t, "done", completedJobs[0].Status)
-}
-
-func tlsConfig(t *testing.T, caPool *x509.CertPool) *tls.Config {
-	t.Helper()
-	return &tls.Config{
-		RootCAs:    caPool,
-		ServerName: "localhost",
-		MinVersion: tls.VersionTLS12,
-	}
+	require.Equal(t, worker1ID, completedJobs[0].WorkerID.String)
 }

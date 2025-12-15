@@ -5,46 +5,36 @@ package openseer.v1;
 option go_package = "github.com/crisog/openseer/gen/openseer/v1;openseerv1";
 
 import "openseer/v1/monitors.proto";
+
 service WorkerService {
-  rpc WorkerStream(stream WorkerMessage) returns (stream ServerMessage);
+  rpc GetJobs(GetJobsRequest) returns (GetJobsResponse);
+  rpc SubmitResult(SubmitResultRequest) returns (SubmitResultResponse);
+  rpc RenewLease(RenewLeaseRequest) returns (RenewLeaseResponse);
 }
 
-message WorkerMessage {
-  oneof message {
-    RegisterRequest register = 1;
-    JobRequest job_request = 2;  // Replaced CapacityUpdate with JobRequest
-    MonitorResult result = 3;
-    LeaseRenewal lease_renewal = 4;
-    Pong pong = 5;
-  }
+message GetJobsRequest {
+  int32 max_jobs = 1;
 }
 
-message LeaseRenewal {
+message GetJobsResponse {
+  repeated MonitorJob jobs = 1;
+}
+
+message SubmitResultRequest {
+  MonitorResult result = 1;
+}
+
+message SubmitResultResponse {
+  bool committed = 1;
+  string run_id = 2;
+}
+
+message RenewLeaseRequest {
   string run_id = 1;
 }
 
-message ServerMessage {
-  oneof message {
-    RegisterResponse registered = 1;
-    MonitorJob job = 2;
-    ResultAck ack = 3;
-    Ping ping = 4;
-  }
-}
-
-message RegisterRequest {
-  string worker_version = 1;
-  string region = 2;
-}
-
-message RegisterResponse {
-  string worker_id = 1;
-  bool accepted = 2;
-  string reason = 3;
-}
-
-message JobRequest {
-  int32 count = 1;  // Number of jobs the worker wants to receive
+message RenewLeaseResponse {
+  bool renewed = 1;
 }
 
 message MonitorJob {
@@ -54,17 +44,4 @@ message MonitorJob {
   int32 timeout_ms = 4;
   string method = 5;
   map<string, string> headers = 6;
-}
-
-message ResultAck {
-  string run_id = 1;
-  bool committed = 2;
-}
-
-message Ping {
-  int64 timestamp = 1;
-}
-
-message Pong {
-  int64 timestamp = 1;
 }

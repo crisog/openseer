@@ -48,6 +48,7 @@ type Querier interface {
 	GetUptimeTimeline30d(ctx context.Context, monitorID string) ([]*GetUptimeTimeline30dRow, error)
 	GetUptimeTimeline7d(ctx context.Context, monitorID string) ([]*GetUptimeTimeline7dRow, error)
 	GetWorkerByID(ctx context.Context, id string) (*AppWorker, error)
+	GetWorkerByTokenHash(ctx context.Context, tokenHash sql.NullString) (*AppWorker, error)
 	GetWorkerCapabilities(ctx context.Context, workerID string) ([]*GetWorkerCapabilitiesRow, error)
 	LeaseJobs(ctx context.Context, arg *LeaseJobsParams) ([]*LeaseJobsRow, error)
 	LeaseJobsWithFallback(ctx context.Context, arg *LeaseJobsWithFallbackParams) ([]*LeaseJobsWithFallbackRow, error)
@@ -68,6 +69,7 @@ type Querier interface {
 	RenewLease(ctx context.Context, arg *RenewLeaseParams) (*AppJob, error)
 	RenewWorkerCertificate(ctx context.Context, arg *RenewWorkerCertificateParams) (*AppWorker, error)
 	RevokeWorker(ctx context.Context, arg *RevokeWorkerParams) error
+	SetWorkerToken(ctx context.Context, arg *SetWorkerTokenParams) error
 	UpdateMonitor(ctx context.Context, arg *UpdateMonitorParams) (*AppMonitor, error)
 	UpdateMonitorByUser(ctx context.Context, arg *UpdateMonitorByUserParams) (*AppMonitor, error)
 	UpdateMonitorSchedulingTime(ctx context.Context, arg *UpdateMonitorSchedulingTimeParams) (*AppMonitor, error)

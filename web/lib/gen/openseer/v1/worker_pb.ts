@@ -12,61 +12,85 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file openseer/v1/worker.proto.
  */
 export const file_openseer_v1_worker: GenFile = /*@__PURE__*/
-  fileDesc("ChhvcGVuc2Vlci92MS93b3JrZXIucHJvdG8SC29wZW5zZWVyLnYxIoECCg1Xb3JrZXJNZXNzYWdlEjAKCHJlZ2lzdGVyGAEgASgLMhwub3BlbnNlZXIudjEuUmVnaXN0ZXJSZXF1ZXN0SAASLgoLam9iX3JlcXVlc3QYAiABKAsyFy5vcGVuc2Vlci52MS5Kb2JSZXF1ZXN0SAASLAoGcmVzdWx0GAMgASgLMhoub3BlbnNlZXIudjEuTW9uaXRvclJlc3VsdEgAEjIKDWxlYXNlX3JlbmV3YWwYBCABKAsyGS5vcGVuc2Vlci52MS5MZWFzZVJlbmV3YWxIABIhCgRwb25nGAUgASgLMhEub3BlbnNlZXIudjEuUG9uZ0gAQgkKB21lc3NhZ2UiHgoMTGVhc2VSZW5ld2FsEg4KBnJ1bl9pZBgBIAEoCSLBAQoNU2VydmVyTWVzc2FnZRIzCgpyZWdpc3RlcmVkGAEgASgLMh0ub3BlbnNlZXIudjEuUmVnaXN0ZXJSZXNwb25zZUgAEiYKA2pvYhgCIAEoCzIXLm9wZW5zZWVyLnYxLk1vbml0b3JKb2JIABIlCgNhY2sYAyABKAsyFi5vcGVuc2Vlci52MS5SZXN1bHRBY2tIABIhCgRwaW5nGAQgASgLMhEub3BlbnNlZXIudjEuUGluZ0gAQgkKB21lc3NhZ2UiOQoPUmVnaXN0ZXJSZXF1ZXN0EhYKDndvcmtlcl92ZXJzaW9uGAEgASgJEg4KBnJlZ2lvbhgCIAEoCSJHChBSZWdpc3RlclJlc3BvbnNlEhEKCXdvcmtlcl9pZBgBIAEoCRIQCghhY2NlcHRlZBgCIAEoCBIOCgZyZWFzb24YAyABKAkiGwoKSm9iUmVxdWVzdBINCgVjb3VudBgBIAEoBSLIAQoKTW9uaXRvckpvYhIOCgZydW5faWQYASABKAkSEgoKbW9uaXRvcl9pZBgCIAEoCRILCgN1cmwYAyABKAkSEgoKdGltZW91dF9tcxgEIAEoBRIOCgZtZXRob2QYBSABKAkSNQoHaGVhZGVycxgGIAMoCzIkLm9wZW5zZWVyLnYxLk1vbml0b3JKb2IuSGVhZGVyc0VudHJ5Gi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIi4KCVJlc3VsdEFjaxIOCgZydW5faWQYASABKAkSEQoJY29tbWl0dGVkGAIgASgIIhkKBFBpbmcSEQoJdGltZXN0YW1wGAEgASgDIhkKBFBvbmcSEQoJdGltZXN0YW1wGAEgASgDMlsKDVdvcmtlclNlcnZpY2USSgoMV29ya2VyU3RyZWFtEhoub3BlbnNlZXIudjEuV29ya2VyTWVzc2FnZRoaLm9wZW5zZWVyLnYxLlNlcnZlck1lc3NhZ2UoATABQjdaNWdpdGh1Yi5jb20vY3Jpc29nL29wZW5zZWVyL2dlbi9vcGVuc2Vlci92MTtvcGVuc2VlcnYxYgZwcm90bzM", [file_openseer_v1_monitors]);
+  fileDesc("ChhvcGVuc2Vlci92MS93b3JrZXIucHJvdG8SC29wZW5zZWVyLnYxIiIKDkdldEpvYnNSZXF1ZXN0EhAKCG1heF9qb2JzGAEgASgFIjgKD0dldEpvYnNSZXNwb25zZRIlCgRqb2JzGAEgAygLMhcub3BlbnNlZXIudjEuTW9uaXRvckpvYiJBChNTdWJtaXRSZXN1bHRSZXF1ZXN0EioKBnJlc3VsdBgBIAEoCzIaLm9wZW5zZWVyLnYxLk1vbml0b3JSZXN1bHQiOQoUU3VibWl0UmVzdWx0UmVzcG9uc2USEQoJY29tbWl0dGVkGAEgASgIEg4KBnJ1bl9pZBgCIAEoCSIjChFSZW5ld0xlYXNlUmVxdWVzdBIOCgZydW5faWQYASABKAkiJQoSUmVuZXdMZWFzZVJlc3BvbnNlEg8KB3JlbmV3ZWQYASABKAgiyAEKCk1vbml0b3JKb2ISDgoGcnVuX2lkGAEgASgJEhIKCm1vbml0b3JfaWQYAiABKAkSCwoDdXJsGAMgASgJEhIKCnRpbWVvdXRfbXMYBCABKAUSDgoGbWV0aG9kGAUgASgJEjUKB2hlYWRlcnMYBiADKAsyJC5vcGVuc2Vlci52MS5Nb25pdG9ySm9iLkhlYWRlcnNFbnRyeRouCgxIZWFkZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ATL5AQoNV29ya2VyU2VydmljZRJECgdHZXRKb2JzEhsub3BlbnNlZXIudjEuR2V0Sm9ic1JlcXVlc3QaHC5vcGVuc2Vlci52MS5HZXRKb2JzUmVzcG9uc2USUwoMU3VibWl0UmVzdWx0EiAub3BlbnNlZXIudjEuU3VibWl0UmVzdWx0UmVxdWVzdBohLm9wZW5zZWVyLnYxLlN1Ym1pdFJlc3VsdFJlc3BvbnNlEk0KClJlbmV3TGVhc2USHi5vcGVuc2Vlci52MS5SZW5ld0xlYXNlUmVxdWVzdBofLm9wZW5zZWVyLnYxLlJlbmV3TGVhc2VSZXNwb25zZUI3WjVnaXRodWIuY29tL2NyaXNvZy9vcGVuc2Vlci9nZW4vb3BlbnNlZXIvdjE7b3BlbnNlZXJ2MWIGcHJvdG8z", [file_openseer_v1_monitors]);
 
 /**
- * @generated from message openseer.v1.WorkerMessage
+ * @generated from message openseer.v1.GetJobsRequest
  */
-export type WorkerMessage = Message<"openseer.v1.WorkerMessage"> & {
+export type GetJobsRequest = Message<"openseer.v1.GetJobsRequest"> & {
   /**
-   * @generated from oneof openseer.v1.WorkerMessage.message
+   * @generated from field: int32 max_jobs = 1;
    */
-  message: {
-    /**
-     * @generated from field: openseer.v1.RegisterRequest register = 1;
-     */
-    value: RegisterRequest;
-    case: "register";
-  } | {
-    /**
-     * Replaced CapacityUpdate with JobRequest
-     *
-     * @generated from field: openseer.v1.JobRequest job_request = 2;
-     */
-    value: JobRequest;
-    case: "jobRequest";
-  } | {
-    /**
-     * @generated from field: openseer.v1.MonitorResult result = 3;
-     */
-    value: MonitorResult;
-    case: "result";
-  } | {
-    /**
-     * @generated from field: openseer.v1.LeaseRenewal lease_renewal = 4;
-     */
-    value: LeaseRenewal;
-    case: "leaseRenewal";
-  } | {
-    /**
-     * @generated from field: openseer.v1.Pong pong = 5;
-     */
-    value: Pong;
-    case: "pong";
-  } | { case: undefined; value?: undefined };
+  maxJobs: number;
 };
 
 /**
- * Describes the message openseer.v1.WorkerMessage.
- * Use `create(WorkerMessageSchema)` to create a new message.
+ * Describes the message openseer.v1.GetJobsRequest.
+ * Use `create(GetJobsRequestSchema)` to create a new message.
  */
-export const WorkerMessageSchema: GenMessage<WorkerMessage> = /*@__PURE__*/
+export const GetJobsRequestSchema: GenMessage<GetJobsRequest> = /*@__PURE__*/
   messageDesc(file_openseer_v1_worker, 0);
 
 /**
- * @generated from message openseer.v1.LeaseRenewal
+ * @generated from message openseer.v1.GetJobsResponse
  */
-export type LeaseRenewal = Message<"openseer.v1.LeaseRenewal"> & {
+export type GetJobsResponse = Message<"openseer.v1.GetJobsResponse"> & {
+  /**
+   * @generated from field: repeated openseer.v1.MonitorJob jobs = 1;
+   */
+  jobs: MonitorJob[];
+};
+
+/**
+ * Describes the message openseer.v1.GetJobsResponse.
+ * Use `create(GetJobsResponseSchema)` to create a new message.
+ */
+export const GetJobsResponseSchema: GenMessage<GetJobsResponse> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_worker, 1);
+
+/**
+ * @generated from message openseer.v1.SubmitResultRequest
+ */
+export type SubmitResultRequest = Message<"openseer.v1.SubmitResultRequest"> & {
+  /**
+   * @generated from field: openseer.v1.MonitorResult result = 1;
+   */
+  result?: MonitorResult;
+};
+
+/**
+ * Describes the message openseer.v1.SubmitResultRequest.
+ * Use `create(SubmitResultRequestSchema)` to create a new message.
+ */
+export const SubmitResultRequestSchema: GenMessage<SubmitResultRequest> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_worker, 2);
+
+/**
+ * @generated from message openseer.v1.SubmitResultResponse
+ */
+export type SubmitResultResponse = Message<"openseer.v1.SubmitResultResponse"> & {
+  /**
+   * @generated from field: bool committed = 1;
+   */
+  committed: boolean;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message openseer.v1.SubmitResultResponse.
+ * Use `create(SubmitResultResponseSchema)` to create a new message.
+ */
+export const SubmitResultResponseSchema: GenMessage<SubmitResultResponse> = /*@__PURE__*/
+  messageDesc(file_openseer_v1_worker, 3);
+
+/**
+ * @generated from message openseer.v1.RenewLeaseRequest
+ */
+export type RenewLeaseRequest = Message<"openseer.v1.RenewLeaseRequest"> & {
   /**
    * @generated from field: string run_id = 1;
    */
@@ -74,119 +98,27 @@ export type LeaseRenewal = Message<"openseer.v1.LeaseRenewal"> & {
 };
 
 /**
- * Describes the message openseer.v1.LeaseRenewal.
- * Use `create(LeaseRenewalSchema)` to create a new message.
+ * Describes the message openseer.v1.RenewLeaseRequest.
+ * Use `create(RenewLeaseRequestSchema)` to create a new message.
  */
-export const LeaseRenewalSchema: GenMessage<LeaseRenewal> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_worker, 1);
-
-/**
- * @generated from message openseer.v1.ServerMessage
- */
-export type ServerMessage = Message<"openseer.v1.ServerMessage"> & {
-  /**
-   * @generated from oneof openseer.v1.ServerMessage.message
-   */
-  message: {
-    /**
-     * @generated from field: openseer.v1.RegisterResponse registered = 1;
-     */
-    value: RegisterResponse;
-    case: "registered";
-  } | {
-    /**
-     * @generated from field: openseer.v1.MonitorJob job = 2;
-     */
-    value: MonitorJob;
-    case: "job";
-  } | {
-    /**
-     * @generated from field: openseer.v1.ResultAck ack = 3;
-     */
-    value: ResultAck;
-    case: "ack";
-  } | {
-    /**
-     * @generated from field: openseer.v1.Ping ping = 4;
-     */
-    value: Ping;
-    case: "ping";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message openseer.v1.ServerMessage.
- * Use `create(ServerMessageSchema)` to create a new message.
- */
-export const ServerMessageSchema: GenMessage<ServerMessage> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_worker, 2);
-
-/**
- * @generated from message openseer.v1.RegisterRequest
- */
-export type RegisterRequest = Message<"openseer.v1.RegisterRequest"> & {
-  /**
-   * @generated from field: string worker_version = 1;
-   */
-  workerVersion: string;
-
-  /**
-   * @generated from field: string region = 2;
-   */
-  region: string;
-};
-
-/**
- * Describes the message openseer.v1.RegisterRequest.
- * Use `create(RegisterRequestSchema)` to create a new message.
- */
-export const RegisterRequestSchema: GenMessage<RegisterRequest> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_worker, 3);
-
-/**
- * @generated from message openseer.v1.RegisterResponse
- */
-export type RegisterResponse = Message<"openseer.v1.RegisterResponse"> & {
-  /**
-   * @generated from field: string worker_id = 1;
-   */
-  workerId: string;
-
-  /**
-   * @generated from field: bool accepted = 2;
-   */
-  accepted: boolean;
-
-  /**
-   * @generated from field: string reason = 3;
-   */
-  reason: string;
-};
-
-/**
- * Describes the message openseer.v1.RegisterResponse.
- * Use `create(RegisterResponseSchema)` to create a new message.
- */
-export const RegisterResponseSchema: GenMessage<RegisterResponse> = /*@__PURE__*/
+export const RenewLeaseRequestSchema: GenMessage<RenewLeaseRequest> = /*@__PURE__*/
   messageDesc(file_openseer_v1_worker, 4);
 
 /**
- * @generated from message openseer.v1.JobRequest
+ * @generated from message openseer.v1.RenewLeaseResponse
  */
-export type JobRequest = Message<"openseer.v1.JobRequest"> & {
+export type RenewLeaseResponse = Message<"openseer.v1.RenewLeaseResponse"> & {
   /**
-   * Number of jobs the worker wants to receive
-   *
-   * @generated from field: int32 count = 1;
+   * @generated from field: bool renewed = 1;
    */
-  count: number;
+  renewed: boolean;
 };
 
 /**
- * Describes the message openseer.v1.JobRequest.
- * Use `create(JobRequestSchema)` to create a new message.
+ * Describes the message openseer.v1.RenewLeaseResponse.
+ * Use `create(RenewLeaseResponseSchema)` to create a new message.
  */
-export const JobRequestSchema: GenMessage<JobRequest> = /*@__PURE__*/
+export const RenewLeaseResponseSchema: GenMessage<RenewLeaseResponse> = /*@__PURE__*/
   messageDesc(file_openseer_v1_worker, 5);
 
 /**
@@ -232,72 +164,32 @@ export const MonitorJobSchema: GenMessage<MonitorJob> = /*@__PURE__*/
   messageDesc(file_openseer_v1_worker, 6);
 
 /**
- * @generated from message openseer.v1.ResultAck
- */
-export type ResultAck = Message<"openseer.v1.ResultAck"> & {
-  /**
-   * @generated from field: string run_id = 1;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: bool committed = 2;
-   */
-  committed: boolean;
-};
-
-/**
- * Describes the message openseer.v1.ResultAck.
- * Use `create(ResultAckSchema)` to create a new message.
- */
-export const ResultAckSchema: GenMessage<ResultAck> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_worker, 7);
-
-/**
- * @generated from message openseer.v1.Ping
- */
-export type Ping = Message<"openseer.v1.Ping"> & {
-  /**
-   * @generated from field: int64 timestamp = 1;
-   */
-  timestamp: bigint;
-};
-
-/**
- * Describes the message openseer.v1.Ping.
- * Use `create(PingSchema)` to create a new message.
- */
-export const PingSchema: GenMessage<Ping> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_worker, 8);
-
-/**
- * @generated from message openseer.v1.Pong
- */
-export type Pong = Message<"openseer.v1.Pong"> & {
-  /**
-   * @generated from field: int64 timestamp = 1;
-   */
-  timestamp: bigint;
-};
-
-/**
- * Describes the message openseer.v1.Pong.
- * Use `create(PongSchema)` to create a new message.
- */
-export const PongSchema: GenMessage<Pong> = /*@__PURE__*/
-  messageDesc(file_openseer_v1_worker, 9);
-
-/**
  * @generated from service openseer.v1.WorkerService
  */
 export const WorkerService: GenService<{
   /**
-   * @generated from rpc openseer.v1.WorkerService.WorkerStream
+   * @generated from rpc openseer.v1.WorkerService.GetJobs
    */
-  workerStream: {
-    methodKind: "bidi_streaming";
-    input: typeof WorkerMessageSchema;
-    output: typeof ServerMessageSchema;
+  getJobs: {
+    methodKind: "unary";
+    input: typeof GetJobsRequestSchema;
+    output: typeof GetJobsResponseSchema;
+  },
+  /**
+   * @generated from rpc openseer.v1.WorkerService.SubmitResult
+   */
+  submitResult: {
+    methodKind: "unary";
+    input: typeof SubmitResultRequestSchema;
+    output: typeof SubmitResultResponseSchema;
+  },
+  /**
+   * @generated from rpc openseer.v1.WorkerService.RenewLease
+   */
+  renewLease: {
+    methodKind: "unary";
+    input: typeof RenewLeaseRequestSchema;
+    output: typeof RenewLeaseResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_openseer_v1_worker, 0);

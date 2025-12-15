@@ -18,29 +18,24 @@ message EnrollWorkerRequest {
   string hostname = 3;
   map<string, string> capabilities = 4;
   string enrollment_token = 5;
-  string csr_pem = 6;
 }
 
 message EnrollWorkerResponse {
   string worker_id = 1;
   bool accepted = 2;
   string reason = 3;
-  string certificate = 4;
-  int64 expires_at = 6;
-  string api_endpoint = 7;
-  string ca_certificate = 8;
+  string api_token = 4;
+  string api_endpoint = 5;
 }
 
 message RenewEnrollmentRequest {
   string worker_id = 1;
-  string csr_pem = 2;
 }
 
 message RenewEnrollmentResponse {
   bool renewed = 1;
-  string certificate = 2;
-  int64 expires_at = 4;
-  string reason = 5;
+  string api_token = 2;
+  string reason = 3;
 }
 
 message RevokeEnrollmentRequest {

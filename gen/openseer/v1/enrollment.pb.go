@@ -28,7 +28,6 @@ type EnrollWorkerRequest struct {
 	Hostname        string                 `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`
 	Capabilities    map[string]string      `protobuf:"bytes,4,rep,name=capabilities,proto3" json:"capabilities,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	EnrollmentToken string                 `protobuf:"bytes,5,opt,name=enrollment_token,json=enrollmentToken,proto3" json:"enrollment_token,omitempty"`
-	CsrPem          string                 `protobuf:"bytes,6,opt,name=csr_pem,json=csrPem,proto3" json:"csr_pem,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -98,22 +97,13 @@ func (x *EnrollWorkerRequest) GetEnrollmentToken() string {
 	return ""
 }
 
-func (x *EnrollWorkerRequest) GetCsrPem() string {
-	if x != nil {
-		return x.CsrPem
-	}
-	return ""
-}
-
 type EnrollWorkerResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
 	Accepted      bool                   `protobuf:"varint,2,opt,name=accepted,proto3" json:"accepted,omitempty"`
 	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	Certificate   string                 `protobuf:"bytes,4,opt,name=certificate,proto3" json:"certificate,omitempty"`
-	ExpiresAt     int64                  `protobuf:"varint,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	ApiEndpoint   string                 `protobuf:"bytes,7,opt,name=api_endpoint,json=apiEndpoint,proto3" json:"api_endpoint,omitempty"`
-	CaCertificate string                 `protobuf:"bytes,8,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"`
+	ApiToken      string                 `protobuf:"bytes,4,opt,name=api_token,json=apiToken,proto3" json:"api_token,omitempty"`
+	ApiEndpoint   string                 `protobuf:"bytes,5,opt,name=api_endpoint,json=apiEndpoint,proto3" json:"api_endpoint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,18 +159,11 @@ func (x *EnrollWorkerResponse) GetReason() string {
 	return ""
 }
 
-func (x *EnrollWorkerResponse) GetCertificate() string {
+func (x *EnrollWorkerResponse) GetApiToken() string {
 	if x != nil {
-		return x.Certificate
+		return x.ApiToken
 	}
 	return ""
-}
-
-func (x *EnrollWorkerResponse) GetExpiresAt() int64 {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return 0
 }
 
 func (x *EnrollWorkerResponse) GetApiEndpoint() string {
@@ -190,17 +173,9 @@ func (x *EnrollWorkerResponse) GetApiEndpoint() string {
 	return ""
 }
 
-func (x *EnrollWorkerResponse) GetCaCertificate() string {
-	if x != nil {
-		return x.CaCertificate
-	}
-	return ""
-}
-
 type RenewEnrollmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	CsrPem        string                 `protobuf:"bytes,2,opt,name=csr_pem,json=csrPem,proto3" json:"csr_pem,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -242,19 +217,11 @@ func (x *RenewEnrollmentRequest) GetWorkerId() string {
 	return ""
 }
 
-func (x *RenewEnrollmentRequest) GetCsrPem() string {
-	if x != nil {
-		return x.CsrPem
-	}
-	return ""
-}
-
 type RenewEnrollmentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Renewed       bool                   `protobuf:"varint,1,opt,name=renewed,proto3" json:"renewed,omitempty"`
-	Certificate   string                 `protobuf:"bytes,2,opt,name=certificate,proto3" json:"certificate,omitempty"`
-	ExpiresAt     int64                  `protobuf:"varint,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	ApiToken      string                 `protobuf:"bytes,2,opt,name=api_token,json=apiToken,proto3" json:"api_token,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -296,18 +263,11 @@ func (x *RenewEnrollmentResponse) GetRenewed() bool {
 	return false
 }
 
-func (x *RenewEnrollmentResponse) GetCertificate() string {
+func (x *RenewEnrollmentResponse) GetApiToken() string {
 	if x != nil {
-		return x.Certificate
+		return x.ApiToken
 	}
 	return ""
-}
-
-func (x *RenewEnrollmentResponse) GetExpiresAt() int64 {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return 0
 }
 
 func (x *RenewEnrollmentResponse) GetReason() string {
@@ -789,35 +749,28 @@ var File_openseer_v1_enrollment_proto protoreflect.FileDescriptor
 
 const file_openseer_v1_enrollment_proto_rawDesc = "" +
 	"\n" +
-	"\x1copenseer/v1/enrollment.proto\x12\vopenseer.v1\"\xcd\x02\n" +
+	"\x1copenseer/v1/enrollment.proto\x12\vopenseer.v1\"\xb4\x02\n" +
 	"\x13EnrollWorkerRequest\x12%\n" +
 	"\x0eworker_version\x18\x01 \x01(\tR\rworkerVersion\x12\x16\n" +
 	"\x06region\x18\x02 \x01(\tR\x06region\x12\x1a\n" +
 	"\bhostname\x18\x03 \x01(\tR\bhostname\x12V\n" +
 	"\fcapabilities\x18\x04 \x03(\v22.openseer.v1.EnrollWorkerRequest.CapabilitiesEntryR\fcapabilities\x12)\n" +
-	"\x10enrollment_token\x18\x05 \x01(\tR\x0fenrollmentToken\x12\x17\n" +
-	"\acsr_pem\x18\x06 \x01(\tR\x06csrPem\x1a?\n" +
+	"\x10enrollment_token\x18\x05 \x01(\tR\x0fenrollmentToken\x1a?\n" +
 	"\x11CapabilitiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf2\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa7\x01\n" +
 	"\x14EnrollWorkerResponse\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x1a\n" +
 	"\baccepted\x18\x02 \x01(\bR\baccepted\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\x12 \n" +
-	"\vcertificate\x18\x04 \x01(\tR\vcertificate\x12\x1d\n" +
-	"\n" +
-	"expires_at\x18\x06 \x01(\x03R\texpiresAt\x12!\n" +
-	"\fapi_endpoint\x18\a \x01(\tR\vapiEndpoint\x12%\n" +
-	"\x0eca_certificate\x18\b \x01(\tR\rcaCertificate\"N\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x1b\n" +
+	"\tapi_token\x18\x04 \x01(\tR\bapiToken\x12!\n" +
+	"\fapi_endpoint\x18\x05 \x01(\tR\vapiEndpoint\"5\n" +
 	"\x16RenewEnrollmentRequest\x12\x1b\n" +
-	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x17\n" +
-	"\acsr_pem\x18\x02 \x01(\tR\x06csrPem\"\x8c\x01\n" +
+	"\tworker_id\x18\x01 \x01(\tR\bworkerId\"h\n" +
 	"\x17RenewEnrollmentResponse\x12\x18\n" +
-	"\arenewed\x18\x01 \x01(\bR\arenewed\x12 \n" +
-	"\vcertificate\x18\x02 \x01(\tR\vcertificate\x12\x1d\n" +
-	"\n" +
-	"expires_at\x18\x04 \x01(\x03R\texpiresAt\x12\x16\n" +
-	"\x06reason\x18\x05 \x01(\tR\x06reason\"N\n" +
+	"\arenewed\x18\x01 \x01(\bR\arenewed\x12\x1b\n" +
+	"\tapi_token\x18\x02 \x01(\tR\bapiToken\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"N\n" +
 	"\x17RevokeEnrollmentRequest\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"N\n" +
