@@ -133,7 +133,7 @@ func (w *Worker) completeJob(runID string) {
 }
 
 func (w *Worker) renewLease(ctx context.Context, runID string) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(w.leaseRenewalInterval)
 	defer ticker.Stop()
 
 	for {

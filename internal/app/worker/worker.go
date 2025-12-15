@@ -26,24 +26,34 @@ type Worker struct {
 
 	apiToken string
 
-	mu             sync.RWMutex
-	maxConcurrency int32
-	activeJobs     map[string]context.CancelFunc
-	pollInterval   time.Duration
+	mu                    sync.RWMutex
+	maxConcurrency        int32
+	activeJobs            map[string]context.CancelFunc
+	pollInterval          time.Duration
+	leaseRenewalThreshold int32
+	leaseRenewalInterval  time.Duration
 }
 
 func NewWorker(id, region, version, enrollmentURL, clusterToken string, maxConcurrency int32, httpClient *http.Client) *Worker {
 	return &Worker{
-		id:             id,
-		region:         region,
-		version:        version,
-		enrollmentURL:  enrollmentURL,
-		clusterToken:   clusterToken,
-		maxConcurrency: maxConcurrency,
-		activeJobs:     make(map[string]context.CancelFunc),
-		httpClient:     httpClient,
-		pollInterval:   200 * time.Millisecond,
+		id:                    id,
+		region:                region,
+		version:               version,
+		enrollmentURL:         enrollmentURL,
+		clusterToken:          clusterToken,
+		maxConcurrency:        maxConcurrency,
+		activeJobs:            make(map[string]context.CancelFunc),
+		httpClient:            httpClient,
+		pollInterval:          200 * time.Millisecond,
+		leaseRenewalThreshold: 20000,
+		leaseRenewalInterval:  10 * time.Second,
 	}
+}
+
+func (w *Worker) WithLeaseRenewalConfig(threshold int32, interval time.Duration) *Worker {
+	w.leaseRenewalThreshold = threshold
+	w.leaseRenewalInterval = interval
+	return w
 }
 
 func (w *Worker) Run(ctx context.Context) error {

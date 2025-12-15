@@ -22,7 +22,7 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 	w.activeJobs[job.RunId] = cancel
 	w.mu.Unlock()
 
-	if job.TimeoutMs > 20000 {
+	if job.TimeoutMs > w.leaseRenewalThreshold {
 		renewalCtx, renewalCancel := context.WithCancel(ctx)
 		go recovery.WithRecover(
 			fmt.Sprintf("lease-renewal-%s", job.RunId),

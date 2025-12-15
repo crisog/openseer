@@ -462,10 +462,10 @@ func TestWorkerLeaseRenewalForLongJobs(t *testing.T) {
 	enrollmentURL, err := url.Parse(enrollmentSrv.URL)
 	require.NoError(t, err)
 
-	workerHTTPClient := &http.Client{Timeout: 30 * time.Second}
+	workerHTTPClient := &http.Client{Timeout: 10 * time.Second}
 
 	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(8 * time.Second)
+		time.Sleep(3 * time.Second)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}))
@@ -479,14 +479,14 @@ func TestWorkerLeaseRenewalForLongJobs(t *testing.T) {
 		env.ClusterToken,
 		1,
 		workerHTTPClient,
-	)
+	).WithLeaseRenewalConfig(3000, 1*time.Second)
 
 	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
 		URL:        targetServer.URL,
 		Method:     http.MethodGet,
 		Regions:    []string{"us-east-1"},
 		IntervalMs: 60000,
-		TimeoutMs:  25000,
+		TimeoutMs:  5000,
 	})
 
 	runID := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1").RunID
@@ -505,14 +505,14 @@ func TestWorkerLeaseRenewalForLongJobs(t *testing.T) {
 			return false
 		}
 		return job.Status == "leased"
-	}, 10*time.Second, 100*time.Millisecond, "job should be leased")
+	}, 5*time.Second, 100*time.Millisecond, "job should be leased")
 
 	job, err := env.Queries.GetJobByRunID(ctx, runID)
 	require.NoError(t, err)
 	require.True(t, job.LeaseExpiresAt.Valid)
 	initialLeaseExpiry := job.LeaseExpiresAt.Time
 
-	time.Sleep(12 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	job, err = env.Queries.GetJobByRunID(ctx, runID)
 	require.NoError(t, err)
@@ -521,7 +521,7 @@ func TestWorkerLeaseRenewalForLongJobs(t *testing.T) {
 			"lease should have been renewed: initial=%v, current=%v", initialLeaseExpiry, job.LeaseExpiresAt.Time)
 	}
 
-	helpers.WaitForJobCompletion(t, env.Queries, runID, 15*time.Second)
+	helpers.WaitForJobCompletion(t, env.Queries, runID, 10*time.Second)
 	result := helpers.WaitForMonitorResultByRunID(t, env.Queries, monitor.ID, runID, 5*time.Second)
 	require.Equal(t, "OK", result.Status)
 
