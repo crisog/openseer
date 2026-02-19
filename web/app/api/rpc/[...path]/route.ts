@@ -5,7 +5,7 @@ export async function POST(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const controlPlaneUrl = process.env.CONTROL_PLANE_URL || "http://localhost:8082";
+    const controlPlaneUrl = process.env.CONTROL_PLANE_URL || "http://localhost:8080";
 
     const resolvedParams = await params;
     const servicePath = resolvedParams.path.join("/");

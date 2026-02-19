@@ -6,7 +6,7 @@ Workers are distributed Go agents that execute HTTP monitoring checks across geo
 
 ```mermaid
 graph TB
-    ControlPlane[🎯 Control Plane<br/>:8081 HTTP + Token Auth]
+    ControlPlane[🎯 Control Plane<br/>:8080 HTTP + Token Auth]
 
     subgraph "Worker Process"
         Enrollment[📝 Enrollment Client]
@@ -194,7 +194,7 @@ message MonitorJob {
 ### Single Worker
 ```bash
 REGION=us-east-1 \
-ENROLLMENT_URL=https://cp.example.com:8082 \
+ENROLLMENT_URL=http://cp.example.com:8080 \
 CLUSTER_TOKEN=your-cluster-token \
 MAX_CONCURRENCY=10 \
 ./worker
@@ -208,7 +208,7 @@ services:
     image: openseer/worker
     environment:
       - REGION=us-east-1
-      - ENROLLMENT_URL=https://cp.example.com:8082
+      - ENROLLMENT_URL=http://cp.example.com:8080
       - CLUSTER_TOKEN=${CLUSTER_TOKEN}
       - MAX_CONCURRENCY=10
 
@@ -216,7 +216,7 @@ services:
     image: openseer/worker
     environment:
       - REGION=eu-west-1
-      - ENROLLMENT_URL=https://cp.example.com:8082
+      - ENROLLMENT_URL=http://cp.example.com:8080
       - CLUSTER_TOKEN=${CLUSTER_TOKEN}
       - MAX_CONCURRENCY=10
 
@@ -224,7 +224,7 @@ services:
     image: openseer/worker
     environment:
       - REGION=ap-south-1
-      - ENROLLMENT_URL=https://cp.example.com:8082
+      - ENROLLMENT_URL=http://cp.example.com:8080
       - CLUSTER_TOKEN=${CLUSTER_TOKEN}
       - MAX_CONCURRENCY=10
 ```
@@ -252,7 +252,7 @@ spec:
         - name: REGION
           value: "us-west-2"
         - name: ENROLLMENT_URL
-          value: "https://openseer-cp:8082"
+          value: "http://openseer-cp:8080"
         - name: CLUSTER_TOKEN
           valueFrom:
             secretKeyRef:
@@ -266,18 +266,28 @@ spec:
 
 ### Environment Variables
 ```bash
-ENROLLMENT_URL=https://localhost:8082
+ENROLLMENT_URL=http://localhost:8080
 CLUSTER_TOKEN=your-cluster-token
 REGION=us-east-1
-MAX_CONCURRENCY=10
+MAX_CONCURRENCY=5
+POLL_BASE_INTERVAL=1s
+POLL_MAX_INTERVAL=10s
+RESULT_SUBMIT_MAX_ATTEMPTS=6
+RESULT_SUBMIT_RETRY_INTERVAL=5s
+RESULT_SUBMIT_TIMEOUT=10s
 ```
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ENROLLMENT_URL` | URL of enrollment endpoint | Required |
+| `ENROLLMENT_URL` | URL of enrollment endpoint | `http://localhost:8080` |
 | `CLUSTER_TOKEN` | Shared cluster enrollment token | Required |
-| `REGION` | Geographic region identifier | Required |
-| `MAX_CONCURRENCY` | Maximum parallel job execution | `10` |
+| `REGION` | Geographic region identifier | `us-east-1` |
+| `MAX_CONCURRENCY` | Maximum parallel job execution | `5` |
+| `POLL_BASE_INTERVAL` | Minimum polling interval | `1s` |
+| `POLL_MAX_INTERVAL` | Maximum polling backoff interval | `10s` |
+| `RESULT_SUBMIT_MAX_ATTEMPTS` | Max attempts to submit each result | `6` |
+| `RESULT_SUBMIT_RETRY_INTERVAL` | Delay between result submit retries | `5s` |
+| `RESULT_SUBMIT_TIMEOUT` | Per-request timeout for result submit RPC | `10s` |
 
 ## Security Model
 
@@ -304,6 +314,7 @@ MAX_CONCURRENCY=10
 
 ### Connection Resilience
 - **Automatic retry**: Exponential backoff on failures
+- **Adaptive polling**: Backoff between `POLL_BASE_INTERVAL` and `POLL_MAX_INTERVAL`
 - **Polling model**: No persistent connections to maintain
 - **Stateless design**: Easy recovery from crashes
 - **Graceful shutdown**: SIGTERM handling with job completion
@@ -313,9 +324,12 @@ MAX_CONCURRENCY=10
 - **Timeout handling**: Context cancellation for stuck operations
 - **Resource limits**: Memory and CPU bounds per job
 - **Concurrent execution**: Parallel job processing with limits
+- **Bounded result retries**: Worker releases local slot after retry budget is exhausted
 
 ### Lease Renewal
 - **Long-running jobs**: Automatic lease renewal for jobs >20s
 - **10-second interval**: Renewal requests every 10 seconds
 - **Failure handling**: Job continues if renewal fails
 - **Context cancellation**: Renewal stops when job completes
+
+For multi-cloud hardening guidance, see `docs/production-multicloud.md`.

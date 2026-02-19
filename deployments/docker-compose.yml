@@ -61,16 +61,12 @@ services:
     environment:
       DATABASE_URL: postgres://openseer:openseer@timescaledb:5432/openseer?sslmode=disable
       BETTER_AUTH_SECRET: dGhpc0lzQVNlY3VyZVNlY3JldEtleUZvckJldHRlckF1dGhUaGF0SXNMb25nRW5vdWdoVG9CZVNlY3VyZQ==
-      WORKER_PORT: 8081
-      WEB_PORT: 8082
+      PORT: 8080
       CLUSTER_TOKEN: dev-token
-      API_ENDPOINT: https://control-plane:8081
+      API_ENDPOINT: http://control-plane:8080
       CORS_ORIGIN: http://localhost:3000
-      TLS_HOSTS: localhost,control-plane,0.0.0.0
-      WEB_TLS_DISABLE: "true"
     ports:
-      - "8081:8081"  # Worker services (mTLS)
-      - "8082:8082"  # Web services (TLS only)
+      - "8080:8080"
     volumes:
       - ..:/openseer
     command: [
@@ -87,9 +83,7 @@ services:
     depends_on:
       - control-plane
     environment:
-      CONTROL_PLANE_ADDR: control-plane:8081
-      ENROLLMENT_PORT: 8082
-      ENROLLMENT_SCHEME: http
+      ENROLLMENT_URL: http://control-plane:8080
       CLUSTER_TOKEN: dev-token
       REGION: us-east-1
       WORKER_ID: worker-${WORKER_INSTANCE:-1}
@@ -114,7 +108,7 @@ services:
       BETTER_AUTH_SECRET: dGhpc0lzQVNlY3VyZVNlY3JldEtleUZvckJldHRlckF1dGhUaGF0SXNMb25nRW5vdWdoVG9CZVNlY3VyZQ==
       BETTER_AUTH_URL: http://localhost:3000
       NODE_ENV: development
-      CONTROL_PLANE_URL: http://control-plane:8082
+      CONTROL_PLANE_URL: http://control-plane:8080
     ports:
       - "3000:3000"
     volumes:

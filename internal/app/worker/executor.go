@@ -45,7 +45,7 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 	if err != nil {
 		msg := err.Error()
 		result.ErrorMessage = &msg
-		w.sendResult(result)
+		w.sendResult(ctx, result)
 		return
 	}
 
@@ -75,7 +75,7 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 		result.ErrorMessage = &msg
 		total := int32(time.Since(start).Milliseconds())
 		result.TotalMs = &total
-		w.sendResult(result)
+		w.sendResult(ctx, result)
 		return
 	}
 	defer func() {
@@ -139,5 +139,5 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 		result.SizeBytes = &vSize
 	}
 
-	w.sendResult(result)
+	w.sendResult(ctx, result)
 }

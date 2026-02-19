@@ -8,7 +8,7 @@ Self-hosted, horizontally scalable HTTP monitoring with a modern web interface. 
 graph TB
     Users[👥 Users]
     WebUI[🌐 Web UI<br/>Next.js :3000]
-    ControlPlane[🎯 Control Plane<br/>Go :8081/:8082]
+    ControlPlane[🎯 Control Plane<br/>Go :8080]
     Database[(🗄️ TimescaleDB<br/>PostgreSQL)]
 
     subgraph "Workers - Distributed"
@@ -55,8 +55,9 @@ This polling-based architecture provides:
 - **Resilience**: Workers automatically reconnect on network issues
 
 For detailed architecture documentation, see:
-- [Control Plane Architecture](cmd/control-plane/ARCHITECTURE.md)
-- [Worker Architecture](cmd/worker/ARCHITECTURE.md)
+- [Control Plane Architecture](cmd/control-plane/README.md)
+- [Worker Architecture](cmd/worker/README.md)
+- [Multi-Cloud Production Guidance](docs/production-multicloud.md)
 
 ## Quick Start
 
@@ -68,7 +69,7 @@ task up
 
 Then access:
 - **Web UI**: http://localhost:3000
-- **API**: https://localhost:8082
+- **API**: http://localhost:8080
 
 ### Step-by-Step Setup
 

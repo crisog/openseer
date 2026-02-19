@@ -200,6 +200,41 @@ func TestEnrollmentRenewalAndRevocation(t *testing.T) {
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
 
+func TestInactiveWorkerTokenCanRecover(t *testing.T) {
+	t.Parallel()
+
+	env := helpers.SetupControlPlane(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	enrollmentSrv := env.StartEnrollmentServer(t)
+	enrollmentClient := openseerv1connect.NewEnrollmentServiceClient(http.DefaultClient, enrollmentSrv.URL)
+	workerID, apiToken := enrollWorkerForTest(t, env, enrollmentClient, "inactive-worker", "us-east-1")
+
+	_, err := env.TestDB.DB.ExecContext(ctx, `
+		UPDATE app.workers
+		SET status = 'inactive',
+		    last_seen_at = NOW() - INTERVAL '5 minutes'
+		WHERE id = $1
+	`, workerID)
+	require.NoError(t, err)
+
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
+
+	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	getJobsReq.Header().Set("Authorization", "Bearer "+apiToken)
+
+	getJobsResp, err := workerClient.GetJobs(ctx, getJobsReq)
+	require.NoError(t, err)
+	require.NotNil(t, getJobsResp)
+
+	recoveredWorker, err := env.Queries.GetWorkerByID(ctx, workerID)
+	require.NoError(t, err)
+	require.Equal(t, "active", recoveredWorker.Status, "inactive worker should become active after authenticated request")
+}
+
 func TestLeaseReaperReclaimsExpiredLeases(t *testing.T) {
 	t.Parallel()
 

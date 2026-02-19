@@ -97,7 +97,7 @@ ORDER BY region;
 SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
 FROM app.workers
 WHERE token_hash = $1
-  AND status IN ('enrolled', 'active');
+  AND status IN ('enrolled', 'active', 'inactive');
 
 -- name: SetWorkerToken :exec
 UPDATE app.workers

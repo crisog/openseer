@@ -6,8 +6,8 @@ The Control Plane is a horizontally scalable Go service that orchestrates HTTP m
 
 ```mermaid
 graph TB
-    WebAPI[🌐 Web API :8082<br/>Connect RPC]
-    WorkerAPI[⚡ Worker API :8081<br/>Connect HTTP + Token Auth]
+    WebAPI[🌐 Web API :8080<br/>Connect RPC]
+    WorkerAPI[⚡ Worker API :8080<br/>Connect HTTP + Token Auth]
 
     subgraph "Core Services"
         Scheduler[📅 Scheduler]
@@ -43,18 +43,17 @@ graph TB
     WorkerInactivity --> Database
 ```
 
-## Dual API Architecture
+## Single API Architecture
 
-### Worker API (:8081)
+### Worker API (`:8080`)
 - **Protocol**: Connect RPC over HTTP
 - **Authentication**: Bearer token (`Authorization: Bearer ostk_...`)
 - **Purpose**: Job distribution and result collection via polling
 - **Endpoints**: `GetJobs`, `SubmitResult`, `RenewLease`
 
-### Web API (:8082)
+### Web API (`:8080`)
 - **Protocol**: Connect RPC over HTTP
 - **Authentication**: Session-based (cookies)
-- **TLS**: Enabled by default (self-signed); can be disabled with `WEB_TLS_DISABLE=true`
 - **Purpose**: Frontend integration and worker enrollment
 - **Services**: Dashboard data, monitor CRUD, user management, enrollment
 
@@ -214,3 +213,5 @@ graph TB
 - Secure session storage
 - Token format: `tokenId.signature` (HMAC-SHA256 over tokenId with `BETTER_AUTH_SECRET`)
 - Session lookup against `web/migrations/auth/schema.sql` tables (`session`, `user`)
+
+For multi-cloud hardening guidance, see `docs/production-multicloud.md`.

@@ -12,48 +12,65 @@ import (
 )
 
 func (w *Worker) pollLoop(ctx context.Context) error {
-	ticker := time.NewTicker(w.pollInterval)
 	heartbeatTicker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
 	defer heartbeatTicker.Stop()
 
-	time.Sleep(100 * time.Millisecond)
-	w.pollForJobs(ctx)
+	currentInterval := w.pollBaseInterval
+	pollTimer := time.NewTimer(100 * time.Millisecond)
+	defer pollTimer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			w.cancelAllJobs()
 			return ctx.Err()
-		case <-ticker.C:
-			w.pollForJobs(ctx)
+		case <-pollTimer.C:
+			jobsReceived, err := w.pollForJobs(ctx)
+			currentInterval = w.nextPollInterval(currentInterval, jobsReceived, err)
+			pollTimer.Reset(currentInterval)
 		case <-heartbeatTicker.C:
 			w.logWorkerStatus()
 		}
 	}
 }
 
-func (w *Worker) pollForJobs(ctx context.Context) {
+func (w *Worker) nextPollInterval(current time.Duration, jobsReceived int, pollErr error) time.Duration {
+	if current < w.pollBaseInterval {
+		current = w.pollBaseInterval
+	}
+
+	if jobsReceived < 0 {
+		return w.pollBaseInterval
+	}
+
+	if pollErr == nil && jobsReceived > 0 {
+		return w.pollBaseInterval
+	}
+
+	next := current * 2
+	if next < w.pollBaseInterval {
+		next = w.pollBaseInterval
+	}
+	if next > w.pollMaxInterval {
+		next = w.pollMaxInterval
+	}
+	return next
+}
+
+func (w *Worker) pollForJobs(ctx context.Context) (int, error) {
 	w.mu.RLock()
 	activeJobCount := int32(len(w.activeJobs))
 	w.mu.RUnlock()
 
 	available := w.maxConcurrency - activeJobCount
 	if available <= 0 {
-		return
+		return -1, nil
 	}
 
-	req := connect.NewRequest(&openseerv1.GetJobsRequest{
-		MaxJobs: available,
-	})
-	for k, v := range w.authHeader() {
-		req.Header()[k] = v
-	}
-
-	resp, err := w.workerClient.GetJobs(ctx, req)
+	resp, err := w.getJobsWithAuthRecovery(ctx, available)
 	if err != nil {
 		log.Printf("Failed to get jobs: %v", err)
-		return
+		return 0, err
 	}
 
 	for _, job := range resp.Msg.Jobs {
@@ -63,6 +80,38 @@ func (w *Worker) pollForJobs(ctx context.Context) {
 			func() { w.executeCheck(ctx, job) },
 		)()
 	}
+
+	return len(resp.Msg.Jobs), nil
+}
+
+func (w *Worker) getJobsWithAuthRecovery(ctx context.Context, available int32) (*connect.Response[openseerv1.GetJobsResponse], error) {
+	resp, err := w.getJobs(ctx, available)
+	if err == nil {
+		return resp, nil
+	}
+
+	if !isUnauthenticatedError(err) {
+		return nil, err
+	}
+
+	refreshCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	refreshErr := w.refreshAPIToken(refreshCtx)
+	cancel()
+	if refreshErr != nil {
+		return nil, fmt.Errorf("failed to refresh API token after unauthenticated response: %w", refreshErr)
+	}
+
+	return w.getJobs(ctx, available)
+}
+
+func (w *Worker) getJobs(ctx context.Context, available int32) (*connect.Response[openseerv1.GetJobsResponse], error) {
+	req := connect.NewRequest(&openseerv1.GetJobsRequest{
+		MaxJobs: available,
+	})
+	for k, v := range w.authHeader() {
+		req.Header()[k] = v
+	}
+	return w.workerClient.GetJobs(ctx, req)
 }
 
 func (w *Worker) logWorkerStatus() {
@@ -85,29 +134,58 @@ func (w *Worker) cancelAllJobs() {
 	log.Printf("Cancelled all active jobs on shutdown")
 }
 
-func (w *Worker) sendResult(result *openseerv1.MonitorResult) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (w *Worker) sendResult(ctx context.Context, result *openseerv1.MonitorResult) {
+	committed := false
 
-	req := connect.NewRequest(&openseerv1.SubmitResultRequest{
-		Result: result,
-	})
-	for k, v := range w.authHeader() {
-		req.Header()[k] = v
-	}
+	for attempt := 1; attempt <= w.resultSubmitMaxAttempts; attempt++ {
+		if !w.isJobActive(result.RunId) {
+			return
+		}
 
-	resp, err := w.workerClient.SubmitResult(ctx, req)
-	if err != nil {
-		log.Printf("Failed to submit result for %s: %v", result.RunId, err)
-		return
-	}
+		submitCtx, cancel := context.WithTimeout(ctx, w.resultSubmitTimeout)
+		resp, err := w.submitResultOnce(submitCtx, result)
+		cancel()
 
-	if resp.Msg.Committed {
-		log.Printf("Result committed for %s", result.RunId)
-		w.completeJob(result.RunId)
-	} else {
-		log.Printf("Result not committed for %s, will retry", result.RunId)
-		go w.retryResult(result)
+		if err != nil {
+			if isUnauthenticatedError(err) {
+				refreshCtx, refreshCancel := context.WithTimeout(ctx, 10*time.Second)
+				refreshErr := w.refreshAPIToken(refreshCtx)
+				refreshCancel()
+				if refreshErr != nil {
+					log.Printf("Failed to refresh API token while submitting result for %s: %v", result.RunId, refreshErr)
+				} else {
+					attempt--
+					continue
+				}
+			}
+
+			if attempt == w.resultSubmitMaxAttempts {
+				log.Printf("Failed to submit result for %s after %d attempts: %v", result.RunId, attempt, err)
+				break
+			}
+
+			log.Printf("Failed to submit result for %s on attempt %d/%d: %v", result.RunId, attempt, w.resultSubmitMaxAttempts, err)
+			if !waitWithContext(ctx, w.resultSubmitRetryInterval) {
+				return
+			}
+			continue
+		}
+
+		if resp.Msg.Committed {
+			committed = true
+			log.Printf("Result committed for %s", result.RunId)
+			break
+		}
+
+		if attempt == w.resultSubmitMaxAttempts {
+			log.Printf("Result for %s was not committed after %d attempts", result.RunId, attempt)
+			break
+		}
+
+		log.Printf("Result not committed for %s on attempt %d/%d, retrying", result.RunId, attempt, w.resultSubmitMaxAttempts)
+		if !waitWithContext(ctx, w.resultSubmitRetryInterval) {
+			return
+		}
 	}
 
 	httpCode := "nil"
@@ -119,6 +197,26 @@ func (w *Worker) sendResult(result *openseerv1.MonitorResult) {
 		totalMs = fmt.Sprintf("%d", *result.TotalMs)
 	}
 	log.Printf("Sent result for %s: status=%s, http_code=%s, total_ms=%s", result.RunId, result.Status, httpCode, totalMs)
+
+	if committed {
+		w.completeJob(result.RunId)
+		return
+	}
+
+	// Release local worker capacity and stop lease renewals. The control-plane lease reaper
+	// will reclaim uncommitted jobs after lease expiry.
+	w.completeJob(result.RunId)
+	log.Printf("Released local slot for uncommitted result %s; job will be reclaimed after lease expiry", result.RunId)
+}
+
+func (w *Worker) submitResultOnce(ctx context.Context, result *openseerv1.MonitorResult) (*connect.Response[openseerv1.SubmitResultResponse], error) {
+	req := connect.NewRequest(&openseerv1.SubmitResultRequest{
+		Result: result,
+	})
+	for k, v := range w.authHeader() {
+		req.Header()[k] = v
+	}
+	return w.workerClient.SubmitResult(ctx, req)
 }
 
 func (w *Worker) completeJob(runID string) {
@@ -132,6 +230,13 @@ func (w *Worker) completeJob(runID string) {
 	}
 }
 
+func (w *Worker) isJobActive(runID string) bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	_, exists := w.activeJobs[runID]
+	return exists
+}
+
 func (w *Worker) renewLease(ctx context.Context, runID string) {
 	ticker := time.NewTicker(w.leaseRenewalInterval)
 	defer ticker.Stop()
@@ -141,16 +246,22 @@ func (w *Worker) renewLease(ctx context.Context, runID string) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			req := connect.NewRequest(&openseerv1.RenewLeaseRequest{
-				RunId: runID,
-			})
-			for k, v := range w.authHeader() {
-				req.Header()[k] = v
-			}
-
 			renewCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			resp, err := w.workerClient.RenewLease(renewCtx, req)
+			resp, err := w.renewLeaseOnce(renewCtx, runID)
 			cancel()
+
+			if err != nil {
+				if isUnauthenticatedError(err) {
+					refreshCtx, refreshCancel := context.WithTimeout(ctx, 10*time.Second)
+					refreshErr := w.refreshAPIToken(refreshCtx)
+					refreshCancel()
+					if refreshErr == nil {
+						renewCtx, retryCancel := context.WithTimeout(ctx, 5*time.Second)
+						resp, err = w.renewLeaseOnce(renewCtx, runID)
+						retryCancel()
+					}
+				}
+			}
 
 			if err != nil {
 				log.Printf("Failed to renew lease for job %s: %v", runID, err)
@@ -167,35 +278,28 @@ func (w *Worker) renewLease(ctx context.Context, runID string) {
 	}
 }
 
-func (w *Worker) retryResult(result *openseerv1.MonitorResult) {
-	time.Sleep(5 * time.Second)
-
-	w.mu.RLock()
-	_, exists := w.activeJobs[result.RunId]
-	w.mu.RUnlock()
-
-	if !exists {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	req := connect.NewRequest(&openseerv1.SubmitResultRequest{
-		Result: result,
+func (w *Worker) renewLeaseOnce(ctx context.Context, runID string) (*connect.Response[openseerv1.RenewLeaseResponse], error) {
+	req := connect.NewRequest(&openseerv1.RenewLeaseRequest{
+		RunId: runID,
 	})
 	for k, v := range w.authHeader() {
 		req.Header()[k] = v
 	}
+	return w.workerClient.RenewLease(ctx, req)
+}
 
-	resp, err := w.workerClient.SubmitResult(ctx, req)
-	if err != nil {
-		log.Printf("Retry failed for %s: %v", result.RunId, err)
-		return
-	}
+func waitWithContext(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
 
-	if resp.Msg.Committed {
-		log.Printf("Retry successful for %s", result.RunId)
-		w.completeJob(result.RunId)
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
+}
+
+func isUnauthenticatedError(err error) bool {
+	return connect.CodeOf(err) == connect.CodeUnauthenticated
 }

@@ -31,6 +31,31 @@ func getEnvInt32(key string, defaultValue int32) int32 {
 	return defaultValue
 }
 
+func getEnvInt(key string, defaultValue int) int {
+	if str := os.Getenv(key); str != "" {
+		if val, err := strconv.Atoi(str); err == nil {
+			return val
+		}
+	}
+	return defaultValue
+}
+
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		dur, err := time.ParseDuration(value)
+		if err != nil {
+			log.Printf("Invalid duration for %s=%q: %v. Using default %v", key, value, err, defaultValue)
+			return defaultValue
+		}
+		if dur <= 0 {
+			log.Printf("Duration for %s must be positive. Using default %v", key, defaultValue)
+			return defaultValue
+		}
+		return dur
+	}
+	return defaultValue
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -64,6 +89,11 @@ func main() {
 
 	enrollmentURL := getEnv("ENROLLMENT_URL", "http://localhost:8080")
 	maxConcurrency := getEnvInt32("MAX_CONCURRENCY", 5)
+	pollBaseInterval := getEnvDuration("POLL_BASE_INTERVAL", 1*time.Second)
+	pollMaxInterval := getEnvDuration("POLL_MAX_INTERVAL", 10*time.Second)
+	resultSubmitMaxAttempts := getEnvInt("RESULT_SUBMIT_MAX_ATTEMPTS", 6)
+	resultSubmitRetryInterval := getEnvDuration("RESULT_SUBMIT_RETRY_INTERVAL", 5*time.Second)
+	resultSubmitTimeout := getEnvDuration("RESULT_SUBMIT_TIMEOUT", 10*time.Second)
 
 	w := worker.NewWorker(
 		workerID,
@@ -73,7 +103,9 @@ func main() {
 		clusterToken,
 		maxConcurrency,
 		hc,
-	)
+	).
+		WithPollingConfig(pollBaseInterval, pollMaxInterval).
+		WithResultRetryConfig(resultSubmitMaxAttempts, resultSubmitRetryInterval, resultSubmitTimeout)
 
 	log.Printf("Worker %s starting, max concurrency: %d, enrollment URL: %s", workerID, maxConcurrency, enrollmentURL)
 
