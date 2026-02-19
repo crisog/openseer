@@ -50,6 +50,13 @@ API_ENDPOINT=https://control-plane.example.com
 CORS_ORIGIN=https://app.example.com
 CLUSTER_TOKEN=<managed-secret>
 BETTER_AUTH_SECRET=<managed-secret>
+WORKER_HEARTBEAT_MIN_UPDATE_INTERVAL=15s
+WORKER_AUTH_CACHE_TTL=30s
+WORKER_AUTH_CACHE_MAX_ENTRIES=50000
+DB_MAX_OPEN_CONNS=100
+DB_MAX_IDLE_CONNS=25
+DB_CONN_MAX_LIFETIME=30m
+DB_CONN_MAX_IDLE_TIME=5m
 ```
 
 ## Token and Secret Operations
@@ -65,6 +72,8 @@ BETTER_AUTH_SECRET=<managed-secret>
 2. Keep `POLL_BASE_INTERVAL` low enough to maintain acceptable pickup latency.
 3. Monitor lease reaper lag and scheduler lag.
 4. Alert on spikes in uncommitted results and repeated lease reclaims.
+5. Budget DB connections per replica: `replicas * DB_MAX_OPEN_CONNS` should stay below PostgreSQL/pooler limits with headroom.
+6. Prefer a PostgreSQL connection pooler for multi-replica fleets and keep app-level pool limits explicit.
 
 ## Operational Checklist
 

@@ -129,6 +129,36 @@ graph TB
 - Token renewal and revocation support
 - Worker capability registration
 
+## Configuration
+
+Common runtime environment variables:
+
+```bash
+PORT=8080
+DATABASE_URL=postgres://openseer:openseer@localhost:5432/openseer?sslmode=disable
+CLUSTER_TOKEN=<required>
+BETTER_AUTH_SECRET=<required>
+API_ENDPOINT=http://control-plane:8080
+CORS_ORIGIN=http://localhost:3000
+SCHEDULER_POLL_INTERVAL=1s
+JOB_LEASE_DURATION=45s
+LEASE_REAPER_INTERVAL=5s
+WORKER_INACTIVITY_INTERVAL=30s
+WORKER_HEARTBEAT_MIN_UPDATE_INTERVAL=15s
+WORKER_AUTH_CACHE_TTL=30s
+WORKER_AUTH_CACHE_MAX_ENTRIES=50000
+DB_MAX_OPEN_CONNS=100
+DB_MAX_IDLE_CONNS=25
+DB_CONN_MAX_LIFETIME=30m
+DB_CONN_MAX_IDLE_TIME=5m
+```
+
+Pool sizing notes:
+
+1. With multiple control-plane replicas, set `DB_MAX_OPEN_CONNS` per replica so total stays below your PostgreSQL (or pooler) capacity.
+2. Keep `DB_MAX_IDLE_CONNS` lower than `DB_MAX_OPEN_CONNS` to avoid idle connection bloat.
+3. Increase `DB_CONN_MAX_LIFETIME`/`DB_CONN_MAX_IDLE_TIME` in stable private networks to reduce churn.
+
 ## Correctness Guarantees
 
 ### Exactly-Once Job Assignment

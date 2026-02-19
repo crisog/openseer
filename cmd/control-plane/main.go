@@ -81,6 +81,10 @@ func main() {
 	defer logger.Sync()
 
 	databaseURL := getEnv("DATABASE_URL", "postgres://openseer:openseer@localhost:5432/openseer?sslmode=disable")
+	dbMaxOpenConns := getEnvInt("DB_MAX_OPEN_CONNS", 100)
+	dbMaxIdleConns := getEnvInt("DB_MAX_IDLE_CONNS", 25)
+	dbConnMaxLifetime := getEnvDuration("DB_CONN_MAX_LIFETIME", 30*time.Minute)
+	dbConnMaxIdleTime := getEnvDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute)
 
 	config, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
@@ -90,12 +94,28 @@ func main() {
 	sqlDB := stdlib.OpenDB(*config)
 	defer sqlDB.Close()
 
+	if dbMaxIdleConns > dbMaxOpenConns {
+		log.Printf("DB_MAX_IDLE_CONNS (%d) exceeds DB_MAX_OPEN_CONNS (%d); clamping idle conns", dbMaxIdleConns, dbMaxOpenConns)
+		dbMaxIdleConns = dbMaxOpenConns
+	}
+
+	sqlDB.SetMaxOpenConns(dbMaxOpenConns)
+	sqlDB.SetMaxIdleConns(dbMaxIdleConns)
+	sqlDB.SetConnMaxLifetime(dbConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(dbConnMaxIdleTime)
+
 	if err := sqlDB.Ping(); err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	queries := sqlc.New(sqlDB)
-	log.Println("Database connected")
+	log.Printf(
+		"Database connected (pool: max_open=%d max_idle=%d conn_max_lifetime=%s conn_max_idle_time=%s)",
+		dbMaxOpenConns,
+		dbMaxIdleConns,
+		dbConnMaxLifetime,
+		dbConnMaxIdleTime,
+	)
 
 	clusterToken := getEnv("CLUSTER_TOKEN", "")
 	if clusterToken == "" {

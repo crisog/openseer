@@ -65,6 +65,13 @@ services:
       CLUSTER_TOKEN: dev-token
       API_ENDPOINT: http://control-plane:8080
       CORS_ORIGIN: http://localhost:3000
+      WORKER_HEARTBEAT_MIN_UPDATE_INTERVAL: 15s
+      WORKER_AUTH_CACHE_TTL: 30s
+      WORKER_AUTH_CACHE_MAX_ENTRIES: 50000
+      DB_MAX_OPEN_CONNS: 100
+      DB_MAX_IDLE_CONNS: 25
+      DB_CONN_MAX_LIFETIME: 30m
+      DB_CONN_MAX_IDLE_TIME: 5m
     ports:
       - "8080:8080"
     volumes:
