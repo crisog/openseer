@@ -9,8 +9,8 @@ import (
 	"connectrpc.com/connect"
 	openseerv1 "github.com/crisog/openseer/gen/openseer/v1"
 	"github.com/crisog/openseer/gen/openseer/v1/openseerv1connect"
-	"github.com/crisog/openseer/internal/app/control-plane/middleware"
 	workermetrics "github.com/crisog/openseer/internal/app/control-plane/metrics"
+	"github.com/crisog/openseer/internal/app/control-plane/middleware"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
 	"github.com/sqlc-dev/pqtype"
 	"go.uber.org/zap"
@@ -18,21 +18,32 @@ import (
 
 type WorkerService struct {
 	openseerv1connect.UnimplementedWorkerServiceHandler
-	queries       *sqlc.Queries
-	logger        *zap.Logger
-	ingest        *workermetrics.Ingest
-	leaseDuration time.Duration
+	queries               *sqlc.Queries
+	logger                *zap.Logger
+	ingest                *workermetrics.Ingest
+	leaseDuration         time.Duration
+	heartbeatWriteTracker *heartbeatTracker
 }
 
-func NewWorkerService(queries *sqlc.Queries, logger *zap.Logger, ingest *workermetrics.Ingest, leaseDuration time.Duration) *WorkerService {
+func NewWorkerService(
+	queries *sqlc.Queries,
+	logger *zap.Logger,
+	ingest *workermetrics.Ingest,
+	leaseDuration time.Duration,
+	heartbeatMinInterval time.Duration,
+) *WorkerService {
 	if leaseDuration <= 0 {
 		leaseDuration = 45 * time.Second
 	}
+	if heartbeatMinInterval <= 0 {
+		heartbeatMinInterval = 15 * time.Second
+	}
 	return &WorkerService{
-		queries:       queries,
-		logger:        logger,
-		ingest:        ingest,
-		leaseDuration: leaseDuration,
+		queries:               queries,
+		logger:                logger,
+		ingest:                ingest,
+		leaseDuration:         leaseDuration,
+		heartbeatWriteTracker: newHeartbeatTracker(heartbeatMinInterval),
 	}
 }
 
@@ -45,9 +56,7 @@ func (s *WorkerService) GetJobs(
 		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
 	}
 
-	if err := s.queries.UpdateWorkerHeartbeat(ctx, workerID); err != nil {
-		s.logger.Error("Failed to update worker heartbeat", zap.String("worker_id", workerID), zap.Error(err))
-	}
+	s.touchWorkerHeartbeat(ctx, workerID)
 
 	worker, err := s.queries.GetWorkerByID(ctx, workerID)
 	if err != nil {
@@ -108,9 +117,7 @@ func (s *WorkerService) SubmitResult(
 		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
 	}
 
-	if err := s.queries.UpdateWorkerHeartbeat(ctx, workerID); err != nil {
-		s.logger.Error("Failed to update worker heartbeat", zap.String("worker_id", workerID), zap.Error(err))
-	}
+	s.touchWorkerHeartbeat(ctx, workerID)
 
 	result := req.Msg.Result
 	if result == nil {
@@ -152,9 +159,7 @@ func (s *WorkerService) RenewLease(
 		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
 	}
 
-	if err := s.queries.UpdateWorkerHeartbeat(ctx, workerID); err != nil {
-		s.logger.Error("Failed to update worker heartbeat", zap.String("worker_id", workerID), zap.Error(err))
-	}
+	s.touchWorkerHeartbeat(ctx, workerID)
 
 	leaseExpiresAt := time.Now().Add(s.leaseDuration)
 
@@ -214,4 +219,16 @@ func convertHeaders(headersJSON pqtype.NullRawMessage) map[string]string {
 	}
 
 	return headers
+}
+
+func (s *WorkerService) touchWorkerHeartbeat(ctx context.Context, workerID string) {
+	if !s.heartbeatWriteTracker.ShouldUpdate(workerID) {
+		return
+	}
+
+	if err := s.queries.UpdateWorkerHeartbeat(ctx, workerID); err != nil {
+		s.logger.Error("Failed to update worker heartbeat", zap.String("worker_id", workerID), zap.Error(err))
+		// Allow immediate retry on next RPC after transient failures.
+		s.heartbeatWriteTracker.Invalidate(workerID)
+	}
 }

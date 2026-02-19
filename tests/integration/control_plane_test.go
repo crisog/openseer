@@ -175,6 +175,15 @@ func TestEnrollmentRenewalAndRevocation(t *testing.T) {
 	require.NotEmpty(t, renewResp.Msg.ApiToken)
 	require.NotEqual(t, enrollResp.Msg.ApiToken, renewResp.Msg.ApiToken)
 
+	workerSrv := env.StartWorkerServer(t)
+	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
+
+	// Warm auth cache with currently valid token before revocation.
+	cacheWarmReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
+	cacheWarmReq.Header().Set("Authorization", "Bearer "+renewResp.Msg.ApiToken)
+	_, err = workerClient.GetJobs(ctx, cacheWarmReq)
+	require.NoError(t, err)
+
 	revokeReason := "rotation complete"
 	revokeResp, err := enrollmentClient.RevokeEnrollment(ctx, connect.NewRequest(&openseerv1.RevokeEnrollmentRequest{
 		WorkerId: workerID,
@@ -188,9 +197,6 @@ func TestEnrollmentRenewalAndRevocation(t *testing.T) {
 	require.Equal(t, "revoked", workerRevoked.Status)
 	require.True(t, workerRevoked.RevokedReason.Valid)
 	require.Equal(t, revokeReason, workerRevoked.RevokedReason.String)
-
-	workerSrv := env.StartWorkerServer(t)
-	workerClient := openseerv1connect.NewWorkerServiceClient(http.DefaultClient, workerSrv.URL)
 
 	getJobsReq := connect.NewRequest(&openseerv1.GetJobsRequest{MaxJobs: 1})
 	getJobsReq.Header().Set("Authorization", "Bearer "+renewResp.Msg.ApiToken)

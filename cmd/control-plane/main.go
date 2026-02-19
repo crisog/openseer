@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -33,6 +34,22 @@ import (
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			log.Printf("Invalid integer for %s=%q: %v. Using default %d", key, value, err, defaultValue)
+			return defaultValue
+		}
+		if parsed <= 0 {
+			log.Printf("Integer for %s must be positive. Using default %d", key, defaultValue)
+			return defaultValue
+		}
+		return parsed
 	}
 	return defaultValue
 }
@@ -94,18 +111,22 @@ func main() {
 	workerInactivityInterval := getEnvDuration("WORKER_INACTIVITY_INTERVAL", 30*time.Second)
 	schedulerInterval := getEnvDuration("SCHEDULER_POLL_INTERVAL", time.Second)
 	jobLeaseDuration := getEnvDuration("JOB_LEASE_DURATION", 45*time.Second)
+	workerHeartbeatMinUpdateInterval := getEnvDuration("WORKER_HEARTBEAT_MIN_UPDATE_INTERVAL", 15*time.Second)
+	workerAuthCacheTTL := getEnvDuration("WORKER_AUTH_CACHE_TTL", 30*time.Second)
+	workerAuthCacheMaxEntries := getEnvInt("WORKER_AUTH_CACHE_MAX_ENTRIES", 50000)
 
 	leaseReaper := controlplane.NewLeaseReaper(queries, sqlDB, leaseReaperInterval)
 	inactivityMonitor := controlplane.NewWorkerInactivityMonitor(queries, workerInactivityInterval)
 	ing := metrics.New(queries)
 	scheduler := controlplane.NewScheduler(queries, sqlDB, schedulerInterval)
+	workerAuthCache := middleware.NewWorkerAuthCache(workerAuthCacheTTL, workerAuthCacheMaxEntries)
 
 	apiEndpoint := getEnv("API_ENDPOINT", "http://control-plane:8080")
-	enrollmentService := enrollment.NewEnrollmentService(queries, logger, clusterToken, apiEndpoint)
+	enrollmentService := enrollment.NewEnrollmentService(queries, logger, clusterToken, apiEndpoint, workerAuthCache)
 	monitorsService := monitors.NewMonitorsService(queries, logger)
 	dashboardService := dashboard.NewDashboardService(queries, logger)
 	userService := user.NewUserService(queries, logger)
-	workerService := worker.NewWorkerService(queries, logger, ing, jobLeaseDuration)
+	workerService := worker.NewWorkerService(queries, logger, ing, jobLeaseDuration, workerHeartbeatMinUpdateInterval)
 
 	mux := http.NewServeMux()
 
@@ -113,7 +134,7 @@ func main() {
 	mux.Handle(enrollmentPath, enrollmentHandler)
 
 	workerPath, workerHandler := openseerv1connect.NewWorkerServiceHandler(workerService)
-	mux.Handle(workerPath, middleware.TokenAuthHandler(queries, workerHandler))
+	mux.Handle(workerPath, middleware.TokenAuthHandlerWithCache(queries, workerAuthCache, workerHandler))
 
 	monitorsPath, monitorsHandler := openseerv1connect.NewMonitorsServiceHandler(monitorsService)
 	mux.Handle(monitorsPath, monitorsHandler)

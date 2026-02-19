@@ -41,6 +41,7 @@ type ControlPlaneTestEnvironment struct {
 	InactivityMonitor *controlplane.WorkerInactivityMonitor
 	Scheduler         *controlplane.Scheduler
 	Ingest            *metrics.Ingest
+	WorkerAuthCache   *middleware.WorkerAuthCache
 
 	ClusterToken      string
 	APIEndpoint       string
@@ -58,14 +59,15 @@ func SetupControlPlane(t *testing.T) *ControlPlaneTestEnvironment {
 	logger := zaptest.NewLogger(t)
 
 	clusterToken := "test-cluster-token"
+	workerAuthCache := middleware.NewWorkerAuthCache(5*time.Minute, 10000)
 
 	leaseReaper := controlplane.NewLeaseReaper(testDB.Queries, testDB.DB, 1*time.Second)
 	inactivityMonitor := controlplane.NewWorkerInactivityMonitor(testDB.Queries, 1*time.Second)
 	ingest := metrics.New(testDB.Queries)
 	scheduler := controlplane.NewScheduler(testDB.Queries, testDB.DB, 200*time.Millisecond)
 
-	enrollmentService := enrollment.NewEnrollmentService(testDB.Queries, logger, clusterToken, "http://test-control-plane:8080")
-	workerService := workerapi.NewWorkerService(testDB.Queries, logger, ingest, 10*time.Second)
+	enrollmentService := enrollment.NewEnrollmentService(testDB.Queries, logger, clusterToken, "http://test-control-plane:8080", workerAuthCache)
+	workerService := workerapi.NewWorkerService(testDB.Queries, logger, ingest, 10*time.Second, 200*time.Millisecond)
 	monitorsService := monitorsapi.NewMonitorsService(testDB.Queries, logger)
 	dashboardService := dashboard.NewDashboardService(testDB.Queries, logger)
 	userService := user.NewUserService(testDB.Queries, logger)
@@ -82,6 +84,7 @@ func SetupControlPlane(t *testing.T) *ControlPlaneTestEnvironment {
 		InactivityMonitor: inactivityMonitor,
 		Scheduler:         scheduler,
 		Ingest:            ingest,
+		WorkerAuthCache:   workerAuthCache,
 		ClusterToken:      clusterToken,
 		APIEndpoint:       "http://test-control-plane:8080",
 		EnrollmentService: enrollmentService,
@@ -101,6 +104,7 @@ func SetupControlPlaneWithDB(t *testing.T, sharedDB *sql.DB) *ControlPlaneTestEn
 
 	logger := zaptest.NewLogger(t)
 	clusterToken := "test-cluster-token"
+	workerAuthCache := middleware.NewWorkerAuthCache(5*time.Minute, 10000)
 
 	queries := sqlc.New(sharedDB)
 	leaseReaper := controlplane.NewLeaseReaper(queries, sharedDB, 1*time.Second)
@@ -108,8 +112,8 @@ func SetupControlPlaneWithDB(t *testing.T, sharedDB *sql.DB) *ControlPlaneTestEn
 	ingest := metrics.New(queries)
 	scheduler := controlplane.NewScheduler(queries, sharedDB, 200*time.Millisecond)
 
-	enrollmentService := enrollment.NewEnrollmentService(queries, logger, clusterToken, "http://test-control-plane-2:8080")
-	workerService := workerapi.NewWorkerService(queries, logger, ingest, 10*time.Second)
+	enrollmentService := enrollment.NewEnrollmentService(queries, logger, clusterToken, "http://test-control-plane-2:8080", workerAuthCache)
+	workerService := workerapi.NewWorkerService(queries, logger, ingest, 10*time.Second, 200*time.Millisecond)
 	monitorsService := monitorsapi.NewMonitorsService(queries, logger)
 	dashboardService := dashboard.NewDashboardService(queries, logger)
 	userService := user.NewUserService(queries, logger)
@@ -126,6 +130,7 @@ func SetupControlPlaneWithDB(t *testing.T, sharedDB *sql.DB) *ControlPlaneTestEn
 		InactivityMonitor: inactivityMonitor,
 		Scheduler:         scheduler,
 		Ingest:            ingest,
+		WorkerAuthCache:   workerAuthCache,
 		ClusterToken:      clusterToken,
 		APIEndpoint:       "http://test-control-plane-2:8080",
 		EnrollmentService: enrollmentService,
@@ -164,7 +169,7 @@ func (env *ControlPlaneTestEnvironment) StartWorkerServer(t *testing.T, _ ...str
 	workerPath, workerHandler := openseerv1connect.NewWorkerServiceHandler(env.WorkerService)
 
 	mux := http.NewServeMux()
-	mux.Handle(workerPath, middleware.TokenAuthHandler(env.Queries, workerHandler))
+	mux.Handle(workerPath, middleware.TokenAuthHandlerWithCache(env.Queries, env.WorkerAuthCache, workerHandler))
 
 	server := httptest.NewServer(mux)
 	env.EnrollmentService.SetAPIEndpoint(server.URL)

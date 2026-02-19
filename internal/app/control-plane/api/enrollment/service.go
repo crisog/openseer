@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	openseerv1 "github.com/crisog/openseer/gen/openseer/v1"
 	"github.com/crisog/openseer/gen/openseer/v1/openseerv1connect"
+	"github.com/crisog/openseer/internal/app/control-plane/middleware"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
 	"github.com/crisog/openseer/internal/pkg/auth"
 	"github.com/crisog/openseer/internal/pkg/regions"
@@ -24,14 +25,21 @@ type EnrollmentService struct {
 	logger       *zap.Logger
 	clusterToken string
 	apiEndpoint  string
+	authCache    *middleware.WorkerAuthCache
 }
 
-func NewEnrollmentService(queries *sqlc.Queries, logger *zap.Logger, clusterToken, apiEndpoint string) *EnrollmentService {
+func NewEnrollmentService(
+	queries *sqlc.Queries,
+	logger *zap.Logger,
+	clusterToken, apiEndpoint string,
+	authCache *middleware.WorkerAuthCache,
+) *EnrollmentService {
 	return &EnrollmentService{
 		queries:      queries,
 		logger:       logger,
 		clusterToken: clusterToken,
 		apiEndpoint:  apiEndpoint,
+		authCache:    authCache,
 	}
 }
 
@@ -99,6 +107,11 @@ func (s *EnrollmentService) EnrollWorker(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to set worker token"))
 	}
 
+	if s.authCache != nil {
+		s.authCache.InvalidateWorker(workerID)
+		s.authCache.Set(tokenHash, workerID)
+	}
+
 	s.logger.Info("Worker enrolled successfully",
 		zap.String("worker_id", workerID),
 		zap.String("hostname", msg.Hostname),
@@ -151,6 +164,11 @@ func (s *EnrollmentService) RenewEnrollment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to renew token"))
 	}
 
+	if s.authCache != nil {
+		s.authCache.InvalidateWorker(msg.WorkerId)
+		s.authCache.Set(tokenHash, msg.WorkerId)
+	}
+
 	s.logger.Info("Worker enrollment renewed",
 		zap.String("worker_id", msg.WorkerId),
 		zap.String("region", worker.Region))
@@ -183,6 +201,9 @@ func (s *EnrollmentService) RevokeEnrollment(
 	})
 	if err != nil {
 		s.logger.Error("Failed to clear worker token", zap.String("worker_id", msg.WorkerId), zap.Error(err))
+	}
+	if s.authCache != nil {
+		s.authCache.InvalidateWorker(msg.WorkerId)
 	}
 
 	err = s.queries.RevokeWorker(ctx, &sqlc.RevokeWorkerParams{
