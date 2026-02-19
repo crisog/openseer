@@ -98,7 +98,8 @@ func (q *Queries) EnrollWorker(ctx context.Context, arg *EnrollWorkerParams) (*A
 }
 
 const getActiveWorkers = `-- name: GetActiveWorkers :many
-SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
 WHERE status = 'active'
 AND last_seen_at >= NOW() - INTERVAL '1 minute'
 ORDER BY region, id
@@ -140,7 +141,8 @@ func (q *Queries) GetActiveWorkers(ctx context.Context) ([]*AppWorker, error) {
 }
 
 const getWorkerByID = `-- name: GetWorkerByID :one
-SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
 WHERE id = $1
 `
 
@@ -164,7 +166,8 @@ func (q *Queries) GetWorkerByID(ctx context.Context, id string) (*AppWorker, err
 }
 
 const getWorkerByTokenHash = `-- name: GetWorkerByTokenHash :one
-SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
 WHERE token_hash = $1
   AND status IN ('enrolled', 'active', 'inactive')
 `
@@ -269,7 +272,8 @@ func (q *Queries) ListRegionHealth(ctx context.Context) ([]*ListRegionHealthRow,
 }
 
 const listWorkers = `-- name: ListWorkers :many
-SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
 WHERE ($1::TEXT IS NULL OR region = $1)
   AND ($2::TEXT IS NULL OR status = $2)
 ORDER BY enrolled_at DESC

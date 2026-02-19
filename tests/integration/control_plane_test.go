@@ -14,6 +14,7 @@ import (
 
 	openseerv1 "github.com/crisog/openseer/gen/openseer/v1"
 	openseerv1connect "github.com/crisog/openseer/gen/openseer/v1/openseerv1connect"
+	controlplane "github.com/crisog/openseer/internal/app/control-plane"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
 	"github.com/crisog/openseer/tests/helpers"
 )
@@ -289,6 +290,100 @@ func TestLeaseReaperReclaimsExpiredLeases(t *testing.T) {
 	require.NoError(t, err)
 
 	helpers.WaitForWorkerInactivity(t, env.Queries, workerID, 15*time.Second)
+}
+
+func TestJobCleanerRemovesOldDoneJobsOnly(t *testing.T) {
+	t.Parallel()
+
+	env := helpers.SetupControlPlane(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	monitor := helpers.CreateMonitorWithUser(t, env.Queries, env.TestDB.DB, helpers.MonitorConfig{
+		Regions:    []string{"us-east-1"},
+		IntervalMs: 1000,
+		TimeoutMs:  2000,
+	})
+
+	oldDone := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
+	recentDone := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
+	oldLeased := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
+	oldReady := helpers.CreateTestJob(t, env.Queries, monitor.ID, "us-east-1")
+
+	_, err := env.TestDB.DB.ExecContext(ctx, `
+		UPDATE app.jobs
+		SET status = 'done',
+		    scheduled_at = NOW() - INTERVAL '10 days',
+		    lease_expires_at = NULL,
+		    worker_id = NULL
+		WHERE run_id = $1
+	`, oldDone.RunID)
+	require.NoError(t, err)
+
+	_, err = env.TestDB.DB.ExecContext(ctx, `
+		UPDATE app.jobs
+		SET status = 'done',
+		    scheduled_at = NOW() - INTERVAL '1 day',
+		    lease_expires_at = NULL,
+		    worker_id = NULL
+		WHERE run_id = $1
+	`, recentDone.RunID)
+	require.NoError(t, err)
+
+	_, err = env.TestDB.DB.ExecContext(ctx, `
+		UPDATE app.jobs
+		SET status = 'leased',
+		    scheduled_at = NOW() - INTERVAL '10 days',
+		    lease_expires_at = NOW() + INTERVAL '1 hour',
+		    worker_id = 'worker-cleaner-test'
+		WHERE run_id = $1
+	`, oldLeased.RunID)
+	require.NoError(t, err)
+
+	_, err = env.TestDB.DB.ExecContext(ctx, `
+		UPDATE app.jobs
+		SET status = 'ready',
+		    scheduled_at = NOW() - INTERVAL '10 days',
+		    lease_expires_at = NULL,
+		    worker_id = NULL
+		WHERE run_id = $1
+	`, oldReady.RunID)
+	require.NoError(t, err)
+
+	cleanerCtx, cleanerCancel := context.WithCancel(context.Background())
+	defer cleanerCancel()
+
+	cleaner := controlplane.NewJobCleaner(env.Queries, env.TestDB.DB, 50*time.Millisecond, 7*24*time.Hour, 100)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cleaner.Start(cleanerCtx)
+	}()
+
+	require.Eventually(t, func() bool {
+		_, getErr := env.Queries.GetJobByRunID(ctx, oldDone.RunID)
+		return getErr == sql.ErrNoRows
+	}, 5*time.Second, 100*time.Millisecond, "old done job should be deleted by cleaner")
+
+	recentDoneJob, err := env.Queries.GetJobByRunID(ctx, recentDone.RunID)
+	require.NoError(t, err)
+	require.Equal(t, "done", recentDoneJob.Status)
+
+	leasedJob, err := env.Queries.GetJobByRunID(ctx, oldLeased.RunID)
+	require.NoError(t, err)
+	require.Equal(t, "leased", leasedJob.Status)
+
+	readyJob, err := env.Queries.GetJobByRunID(ctx, oldReady.RunID)
+	require.NoError(t, err)
+	require.Equal(t, "ready", readyJob.Status)
+
+	cleanerCancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("job cleaner did not stop after context cancellation")
+	}
 }
 
 func TestConcurrentWorkersLeaseDistinctJobs(t *testing.T) {

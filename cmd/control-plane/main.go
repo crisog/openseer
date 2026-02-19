@@ -131,6 +131,9 @@ func main() {
 	workerInactivityInterval := getEnvDuration("WORKER_INACTIVITY_INTERVAL", 30*time.Second)
 	schedulerInterval := getEnvDuration("SCHEDULER_POLL_INTERVAL", time.Second)
 	jobLeaseDuration := getEnvDuration("JOB_LEASE_DURATION", 45*time.Second)
+	jobCleanupInterval := getEnvDuration("JOB_CLEANUP_INTERVAL", 1*time.Minute)
+	jobRetentionPeriod := getEnvDuration("JOB_RETENTION_PERIOD", 7*24*time.Hour)
+	jobCleanupBatchSize := int32(getEnvInt("JOB_CLEANUP_BATCH_SIZE", 1000))
 	workerHeartbeatMinUpdateInterval := getEnvDuration("WORKER_HEARTBEAT_MIN_UPDATE_INTERVAL", 15*time.Second)
 	workerAuthCacheTTL := getEnvDuration("WORKER_AUTH_CACHE_TTL", 30*time.Second)
 	workerAuthCacheMaxEntries := getEnvInt("WORKER_AUTH_CACHE_MAX_ENTRIES", 50000)
@@ -139,6 +142,7 @@ func main() {
 	inactivityMonitor := controlplane.NewWorkerInactivityMonitor(queries, workerInactivityInterval)
 	ing := metrics.New(queries)
 	scheduler := controlplane.NewScheduler(queries, sqlDB, schedulerInterval)
+	jobCleaner := controlplane.NewJobCleaner(queries, sqlDB, jobCleanupInterval, jobRetentionPeriod, jobCleanupBatchSize)
 	workerAuthCache := middleware.NewWorkerAuthCache(workerAuthCacheTTL, workerAuthCacheMaxEntries)
 
 	apiEndpoint := getEnv("API_ENDPOINT", "http://control-plane:8080")
@@ -206,6 +210,14 @@ func main() {
 		inactivityMonitor.Start(ctx)
 	}, func(err error) {
 		log.Printf("CRITICAL: Worker inactivity monitor crashed - stale worker statuses may linger: %v", err)
+	})()
+
+	wg.Add(1)
+	go recovery.WithRecoverCallback("job-cleaner", func() {
+		defer wg.Done()
+		jobCleaner.Start(ctx)
+	}, func(err error) {
+		log.Printf("CRITICAL: Job cleaner crashed - completed jobs will accumulate: %v", err)
 	})()
 
 	wg.Add(1)

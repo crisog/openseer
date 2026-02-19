@@ -53,6 +53,9 @@ BETTER_AUTH_SECRET=<managed-secret>
 WORKER_HEARTBEAT_MIN_UPDATE_INTERVAL=15s
 WORKER_AUTH_CACHE_TTL=30s
 WORKER_AUTH_CACHE_MAX_ENTRIES=50000
+JOB_CLEANUP_INTERVAL=1m
+JOB_RETENTION_PERIOD=168h
+JOB_CLEANUP_BATCH_SIZE=1000
 DB_MAX_OPEN_CONNS=100
 DB_MAX_IDLE_CONNS=25
 DB_CONN_MAX_LIFETIME=30m
@@ -74,6 +77,7 @@ DB_CONN_MAX_IDLE_TIME=5m
 4. Alert on spikes in uncommitted results and repeated lease reclaims.
 5. Budget DB connections per replica: `replicas * DB_MAX_OPEN_CONNS` should stay below PostgreSQL/pooler limits with headroom.
 6. Prefer a PostgreSQL connection pooler for multi-replica fleets and keep app-level pool limits explicit.
+7. Keep retention cleanup enabled so `app.jobs` growth does not degrade lease/dispatch query latency over time.
 
 ## Operational Checklist
 

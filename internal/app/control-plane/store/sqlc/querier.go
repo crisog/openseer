@@ -21,6 +21,7 @@ type Querier interface {
 	CreateJob(ctx context.Context, arg *CreateJobParams) (*AppJob, error)
 	CreateJobIdempotent(ctx context.Context, arg *CreateJobIdempotentParams) (*AppJob, error)
 	CreateMonitor(ctx context.Context, arg *CreateMonitorParams) (*AppMonitor, error)
+	DeleteDoneJobsBefore(ctx context.Context, arg *DeleteDoneJobsBeforeParams) (int64, error)
 	DeleteMonitor(ctx context.Context, id string) error
 	DeleteMonitorByUser(ctx context.Context, arg *DeleteMonitorByUserParams) error
 	// Delete all pending jobs for a monitor (called when monitor is deleted)
