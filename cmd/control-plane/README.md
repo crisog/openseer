@@ -91,7 +91,7 @@ graph TB
 **Purpose**: Maintains worker registry health
 
 - Monitors worker heartbeats via `last_seen_at` timestamps
-- Marks workers as inactive based on configurable thresholds
+- Marks workers as inactive when `last_seen_at < NOW() - INTERVAL '2 minutes'` (scan cadence is configurable via `WORKER_INACTIVITY_INTERVAL`)
 - Updates worker status for dashboard visibility
 - Coordinates with lease reaper for job reassignment
 
@@ -106,10 +106,10 @@ graph TB
 ## Web Services
 
 ### Dashboard Service
-- Aggregated metrics from continuous aggregates
-- Monitor health overview and recent failures
-- Real-time uptime statistics and latency percentiles
-- Regional performance breakdown
+- Computes monitor counts (total/enabled/disabled/healthy/unhealthy) from monitor configs plus latest per-monitor result
+- Returns monitor status snapshots in `recent_failures` (currently includes all monitors, not only failing ones)
+- Exposes regional worker health via `GetRegionHealth`
+- Currently returns placeholder values for `total_runs_24h`, `failed_runs_24h`, `overall_success_rate`, and `slowest_monitors`
 
 ### Monitors Service
 - CRUD operations for monitor configurations
@@ -121,7 +121,7 @@ graph TB
 - User profile and session management
 - Integration with Better Auth for authentication
 - Session-based API authentication
-- Account lifecycle management
+- Current RPC surface: `GetUserProfile` for the authenticated session user
 
 ### Enrollment Service
 - Worker registration with cluster token validation
@@ -243,9 +243,9 @@ Pool sizing notes:
 
 ### Session Authentication for Web
 - Cookie-based sessions
-- CSRF protection
-- Secure session storage
-- Token format: `tokenId.signature` (HMAC-SHA256 over tokenId with `BETTER_AUTH_SECRET`)
+- Session token signature verification (`tokenId.signature`, HMAC-SHA256 with `BETTER_AUTH_SECRET`)
 - Session lookup against `web/migrations/auth/schema.sql` tables (`session`, `user`)
+- CORS origin allowlist via `CORS_ORIGIN`
+- No explicit CSRF token middleware in the control-plane server today
 
 For multi-cloud hardening guidance, see `docs/production-multicloud.md`.
