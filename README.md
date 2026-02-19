@@ -25,12 +25,14 @@ graph TB
     ControlPlane --> Database
 
     subgraph "Database Schemas"
-        AppSchema[📋 app schema<br/>monitors, jobs, workers, users]
+        AppSchema[📋 app schema<br/>monitors, jobs, workers, worker_capabilities]
         TSSchema[📊 ts schema<br/>results_raw, results_agg_*]
+        AuthSchema[🔐 auth tables<br/>user, session, account, ...]
     end
 
     Database --- AppSchema
     Database --- TSSchema
+    Database --- AuthSchema
 ```
 
 OpenSeer consists of four main components:
@@ -61,51 +63,39 @@ For detailed architecture documentation, see:
 
 ## Quick Start
 
-Start the complete stack with one command:
+For a fresh environment:
 
 ```bash
+task migrate
 task up
 ```
+
+`task migrate` runs backend and web auth migrations. `task up` starts the app profile (TimescaleDB, control plane, worker, and web).
 
 Then access:
 - **Web UI**: http://localhost:3000
 - **API**: http://localhost:8080
 
-### Step-by-Step Setup
-
-1. **Start Database**
-   ```bash
-   task db-up       # PostgreSQL + TimescaleDB
-   task migrate-up  # Database migrations
-   ```
-
-2. **Start Services**
-   ```bash
-   task backend-up  # Control plane + workers
-   task web-up      # Web interface
-   ```
-
-3. **Create Monitors**
-   - Open http://localhost:3000
-   - Sign up/sign in
-   - Add monitors via the web interface
-
-### Development Mode
-
-For development with hot-reload:
+To stop services:
 
 ```bash
-task dev-full    # Full stack with live reload
+task down
 ```
 
-### Common Commands
+To stop services and remove volumes:
 
 ```bash
-task logs              # View all service logs
-task scale-workers N=3 # Scale workers
-task psql              # Database CLI
-task build             # Build images
-task --list            # Show all available tasks
+task clean
+```
+
+### Task Commands
+
+```bash
+task up        # Start all app services
+task down      # Stop app services
+task clean     # Stop app services and remove volumes
+task migrate   # Run backend + web migrations
+task --list    # Show all available tasks
 ```
 
 ## Contributing

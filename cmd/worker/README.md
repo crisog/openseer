@@ -59,7 +59,7 @@ graph TB
 - **Cluster token validation**: Uses shared cluster token for enrollment
 - **API token retrieval**: Receives bearer token (`ostk_...`) for subsequent requests
 - **Region registration**: Declares worker's geographic region
-- **Automatic renewal**: Supports token renewal before expiry
+- **Token refresh**: Renews API token when Worker API calls return unauthenticated
 
 **Enrollment Flow**:
 1. Connect to enrollment endpoint with cluster token
@@ -77,13 +77,20 @@ graph TB
 
 **Polling Loop**:
 ```
+current_interval = poll_base_interval
 while running:
     available_slots = max_concurrency - active_jobs
     if available_slots > 0:
-        jobs = GetJobs(max_jobs: available_slots)
+        jobs, err = GetJobs(max_jobs: available_slots)
         for job in jobs:
             spawn execute_job(job)
-    sleep(poll_interval)
+        if err or len(jobs) == 0:
+            current_interval = min(current_interval * 2, poll_max_interval)
+        else:
+            current_interval = poll_base_interval
+    else:
+        current_interval = poll_base_interval
+    sleep(current_interval)
 ```
 
 ### Job Executor
@@ -109,7 +116,7 @@ while running:
 - **Custom headers**: Supports arbitrary request headers from monitor config
 - **Timeout enforcement**: Per-check timeout with context cancellation
 - **Timing capture**: DNS, connect, TLS, TTFB, download timings
-- **Response capture**: Status code, payload size, headers
+- **Response capture**: Status code and payload size
 - **Error handling**: Network errors, DNS failures, timeouts
 
 **Check Result**:
@@ -137,7 +144,7 @@ type MonitorResult struct {
 - **Immediate submission**: Results sent as soon as check completes
 - **Retry logic**: Automatic retry on temporary failures
 - **Acknowledgment handling**: Waits for commit confirmation
-- **Job cleanup**: Removes job from active map after successful submission
+- **Job cleanup**: Removes job from active map after commit or after retry budget is exhausted
 
 ## Protocol Implementation
 
@@ -293,7 +300,7 @@ RESULT_SUBMIT_TIMEOUT=10s
 
 ### Enrollment Process
 1. **Bootstrap**: Worker starts with cluster token
-2. **HTTPS enrollment**: Connects to Control Plane enrollment endpoint
+2. **Enrollment request**: Connects to Control Plane enrollment endpoint (`ENROLLMENT_URL`)
 3. **Token validation**: Control Plane verifies cluster token
 4. **API token issuance**: Worker receives bearer token (`ostk_...`)
 5. **Token storage**: Token kept in memory for API calls
@@ -306,7 +313,7 @@ RESULT_SUBMIT_TIMEOUT=10s
 - **No file storage**: Tokens kept in memory only
 
 ### Network Security
-- **HTTPS**: All communication over TLS
+- **Transport**: Worker uses the scheme in `ENROLLMENT_URL`/`ApiEndpoint` (HTTP in local/private defaults, HTTPS recommended for untrusted networks)
 - **Outbound-only**: Workers never accept inbound connections
 - **Token authentication**: Bearer token in Authorization header
 
@@ -317,12 +324,12 @@ RESULT_SUBMIT_TIMEOUT=10s
 - **Adaptive polling**: Backoff between `POLL_BASE_INTERVAL` and `POLL_MAX_INTERVAL`
 - **Polling model**: No persistent connections to maintain
 - **Stateless design**: Easy recovery from crashes
-- **Graceful shutdown**: SIGTERM handling with job completion
+- **Shutdown behavior**: SIGTERM/SIGINT cancels active jobs; expired leases are reclaimed by the control plane
 
 ### Job Processing
 - **Lease-based recovery**: Jobs automatically reassigned on failure
 - **Timeout handling**: Context cancellation for stuck operations
-- **Resource limits**: Memory and CPU bounds per job
+- **Concurrency limits**: Maximum in-flight jobs bounded by `MAX_CONCURRENCY`
 - **Concurrent execution**: Parallel job processing with limits
 - **Bounded result retries**: Worker releases local slot after retry budget is exhausted
 

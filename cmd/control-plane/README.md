@@ -114,7 +114,7 @@ graph TB
 ### Monitors Service
 - CRUD operations for monitor configurations
 - Soft delete support with audit trails
-- Validation of URLs, intervals, and assertions
+- Basic required-field validation (`id`, `url`) plus defaults for interval/timeout/method/regions
 - Region targeting and scheduling metadata
 
 ### User Service
@@ -127,7 +127,7 @@ graph TB
 - Worker registration with cluster token validation
 - API token generation and distribution (`ostk_...` format)
 - Token renewal and revocation support
-- Worker capability registration
+- Worker status and token lifecycle management (capabilities are not populated in the current enrollment path)
 
 ## Configuration
 
@@ -165,11 +165,11 @@ Pool sizing notes:
 
 ## Correctness Guarantees
 
-### Exactly-Once Job Assignment
+### At-Least-Once Job Processing
 1. **Database-level row locking** with `FOR UPDATE SKIP LOCKED`
 2. **Job state machine**: `ready → leased → done`
 3. **Worker ID enforcement** in all lease operations
-4. **Automatic lease expiry** returns jobs to ready state
+4. **Automatic lease expiry** returns jobs to `ready`, so jobs can be re-executed if a worker fails before commit
 
 ### Scheduling Precision
 - **Pre-scheduled jobs**: 5s look-ahead prevents delays
@@ -215,7 +215,7 @@ Pool sizing notes:
 - Partitioned by event_at (1-day chunks)
 - Request/response timings, HTTP status, payload size
 - Error messages and regional attribution
-- UPSERT by run_id for idempotency
+- UPSERT by `(run_id, event_at)` for idempotency
 ```
 
 **results_agg_1m/1h/1d** (Continuous Aggregates)
