@@ -33,14 +33,21 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// WorkerServiceWorkerStreamProcedure is the fully-qualified name of the WorkerService's
-	// WorkerStream RPC.
-	WorkerServiceWorkerStreamProcedure = "/openseer.v1.WorkerService/WorkerStream"
+	// WorkerServiceGetJobsProcedure is the fully-qualified name of the WorkerService's GetJobs RPC.
+	WorkerServiceGetJobsProcedure = "/openseer.v1.WorkerService/GetJobs"
+	// WorkerServiceSubmitResultProcedure is the fully-qualified name of the WorkerService's
+	// SubmitResult RPC.
+	WorkerServiceSubmitResultProcedure = "/openseer.v1.WorkerService/SubmitResult"
+	// WorkerServiceRenewLeaseProcedure is the fully-qualified name of the WorkerService's RenewLease
+	// RPC.
+	WorkerServiceRenewLeaseProcedure = "/openseer.v1.WorkerService/RenewLease"
 )
 
 // WorkerServiceClient is a client for the openseer.v1.WorkerService service.
 type WorkerServiceClient interface {
-	WorkerStream(context.Context) *connect.BidiStreamForClient[v1.WorkerMessage, v1.ServerMessage]
+	GetJobs(context.Context, *connect.Request[v1.GetJobsRequest]) (*connect.Response[v1.GetJobsResponse], error)
+	SubmitResult(context.Context, *connect.Request[v1.SubmitResultRequest]) (*connect.Response[v1.SubmitResultResponse], error)
+	RenewLease(context.Context, *connect.Request[v1.RenewLeaseRequest]) (*connect.Response[v1.RenewLeaseResponse], error)
 }
 
 // NewWorkerServiceClient constructs a client for the openseer.v1.WorkerService service. By default,
@@ -54,10 +61,22 @@ func NewWorkerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	workerServiceMethods := v1.File_openseer_v1_worker_proto.Services().ByName("WorkerService").Methods()
 	return &workerServiceClient{
-		workerStream: connect.NewClient[v1.WorkerMessage, v1.ServerMessage](
+		getJobs: connect.NewClient[v1.GetJobsRequest, v1.GetJobsResponse](
 			httpClient,
-			baseURL+WorkerServiceWorkerStreamProcedure,
-			connect.WithSchema(workerServiceMethods.ByName("WorkerStream")),
+			baseURL+WorkerServiceGetJobsProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("GetJobs")),
+			connect.WithClientOptions(opts...),
+		),
+		submitResult: connect.NewClient[v1.SubmitResultRequest, v1.SubmitResultResponse](
+			httpClient,
+			baseURL+WorkerServiceSubmitResultProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("SubmitResult")),
+			connect.WithClientOptions(opts...),
+		),
+		renewLease: connect.NewClient[v1.RenewLeaseRequest, v1.RenewLeaseResponse](
+			httpClient,
+			baseURL+WorkerServiceRenewLeaseProcedure,
+			connect.WithSchema(workerServiceMethods.ByName("RenewLease")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -65,17 +84,31 @@ func NewWorkerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // workerServiceClient implements WorkerServiceClient.
 type workerServiceClient struct {
-	workerStream *connect.Client[v1.WorkerMessage, v1.ServerMessage]
+	getJobs      *connect.Client[v1.GetJobsRequest, v1.GetJobsResponse]
+	submitResult *connect.Client[v1.SubmitResultRequest, v1.SubmitResultResponse]
+	renewLease   *connect.Client[v1.RenewLeaseRequest, v1.RenewLeaseResponse]
 }
 
-// WorkerStream calls openseer.v1.WorkerService.WorkerStream.
-func (c *workerServiceClient) WorkerStream(ctx context.Context) *connect.BidiStreamForClient[v1.WorkerMessage, v1.ServerMessage] {
-	return c.workerStream.CallBidiStream(ctx)
+// GetJobs calls openseer.v1.WorkerService.GetJobs.
+func (c *workerServiceClient) GetJobs(ctx context.Context, req *connect.Request[v1.GetJobsRequest]) (*connect.Response[v1.GetJobsResponse], error) {
+	return c.getJobs.CallUnary(ctx, req)
+}
+
+// SubmitResult calls openseer.v1.WorkerService.SubmitResult.
+func (c *workerServiceClient) SubmitResult(ctx context.Context, req *connect.Request[v1.SubmitResultRequest]) (*connect.Response[v1.SubmitResultResponse], error) {
+	return c.submitResult.CallUnary(ctx, req)
+}
+
+// RenewLease calls openseer.v1.WorkerService.RenewLease.
+func (c *workerServiceClient) RenewLease(ctx context.Context, req *connect.Request[v1.RenewLeaseRequest]) (*connect.Response[v1.RenewLeaseResponse], error) {
+	return c.renewLease.CallUnary(ctx, req)
 }
 
 // WorkerServiceHandler is an implementation of the openseer.v1.WorkerService service.
 type WorkerServiceHandler interface {
-	WorkerStream(context.Context, *connect.BidiStream[v1.WorkerMessage, v1.ServerMessage]) error
+	GetJobs(context.Context, *connect.Request[v1.GetJobsRequest]) (*connect.Response[v1.GetJobsResponse], error)
+	SubmitResult(context.Context, *connect.Request[v1.SubmitResultRequest]) (*connect.Response[v1.SubmitResultResponse], error)
+	RenewLease(context.Context, *connect.Request[v1.RenewLeaseRequest]) (*connect.Response[v1.RenewLeaseResponse], error)
 }
 
 // NewWorkerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -85,16 +118,32 @@ type WorkerServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	workerServiceMethods := v1.File_openseer_v1_worker_proto.Services().ByName("WorkerService").Methods()
-	workerServiceWorkerStreamHandler := connect.NewBidiStreamHandler(
-		WorkerServiceWorkerStreamProcedure,
-		svc.WorkerStream,
-		connect.WithSchema(workerServiceMethods.ByName("WorkerStream")),
+	workerServiceGetJobsHandler := connect.NewUnaryHandler(
+		WorkerServiceGetJobsProcedure,
+		svc.GetJobs,
+		connect.WithSchema(workerServiceMethods.ByName("GetJobs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workerServiceSubmitResultHandler := connect.NewUnaryHandler(
+		WorkerServiceSubmitResultProcedure,
+		svc.SubmitResult,
+		connect.WithSchema(workerServiceMethods.ByName("SubmitResult")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workerServiceRenewLeaseHandler := connect.NewUnaryHandler(
+		WorkerServiceRenewLeaseProcedure,
+		svc.RenewLease,
+		connect.WithSchema(workerServiceMethods.ByName("RenewLease")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/openseer.v1.WorkerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case WorkerServiceWorkerStreamProcedure:
-			workerServiceWorkerStreamHandler.ServeHTTP(w, r)
+		case WorkerServiceGetJobsProcedure:
+			workerServiceGetJobsHandler.ServeHTTP(w, r)
+		case WorkerServiceSubmitResultProcedure:
+			workerServiceSubmitResultHandler.ServeHTTP(w, r)
+		case WorkerServiceRenewLeaseProcedure:
+			workerServiceRenewLeaseHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -104,6 +153,14 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 // UnimplementedWorkerServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedWorkerServiceHandler struct{}
 
-func (UnimplementedWorkerServiceHandler) WorkerStream(context.Context, *connect.BidiStream[v1.WorkerMessage, v1.ServerMessage]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.WorkerService.WorkerStream is not implemented"))
+func (UnimplementedWorkerServiceHandler) GetJobs(context.Context, *connect.Request[v1.GetJobsRequest]) (*connect.Response[v1.GetJobsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.WorkerService.GetJobs is not implemented"))
+}
+
+func (UnimplementedWorkerServiceHandler) SubmitResult(context.Context, *connect.Request[v1.SubmitResultRequest]) (*connect.Response[v1.SubmitResultResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.WorkerService.SubmitResult is not implemented"))
+}
+
+func (UnimplementedWorkerServiceHandler) RenewLease(context.Context, *connect.Request[v1.RenewLeaseRequest]) (*connect.Response[v1.RenewLeaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("openseer.v1.WorkerService.RenewLease is not implemented"))
 }

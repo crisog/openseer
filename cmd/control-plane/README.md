@@ -6,17 +6,14 @@ The Control Plane is a horizontally scalable Go service that orchestrates HTTP m
 
 ```mermaid
 graph TB
-    WebAPI[🌐 Web API :8082<br/>Connect RPC]
-    WorkerAPI[⚡ Worker API :8081<br/>gRPC + mTLS]
+    WebAPI[🌐 Web API :8080<br/>Connect RPC]
+    WorkerAPI[⚡ Worker API :8080<br/>Connect HTTP + Token Auth]
 
     subgraph "Core Services"
         Scheduler[📅 Scheduler]
-        Dispatcher[🎯 Dispatcher]
         LeaseReaper[🔄 Lease Reaper]
-        StreamHealth[💓 Stream Health Monitor]
         WorkerInactivity[👥 Worker Inactivity Monitor]
         Ingest[📥 Ingest]
-        PKI[🔐 PKI Manager]
     end
 
     subgraph "Web Services"
@@ -26,6 +23,10 @@ graph TB
         Enrollment[📝 Enrollment Service]
     end
 
+    subgraph "Worker Services"
+        WorkerSvc[⚙️ Worker Service<br/>GetJobs / SubmitResult / RenewLease]
+    end
+
     Database[(🗄️ Database)]
 
     WebAPI --> Dashboard
@@ -33,32 +34,28 @@ graph TB
     WebAPI --> User
     WebAPI --> Enrollment
 
-    WorkerAPI --> Dispatcher
+    WorkerAPI --> WorkerSvc
 
     Scheduler --> Database
-    Dispatcher --> Database
+    WorkerSvc --> Database
     LeaseReaper --> Database
     Ingest --> Database
-
-    StreamHealth -.-> WorkerAPI
     WorkerInactivity --> Database
-    PKI --> Database
 ```
 
-## Dual API Architecture
+## Single API Architecture
 
-### Worker API (:8081)
-- **Protocol**: Connect gRPC over HTTP/2
-- **Authentication**: mTLS client certificates
-- **Purpose**: Bidirectional streaming with workers
-- **Services**: Job distribution, result collection, enrollment
+### Worker API (`:8080`)
+- **Protocol**: Connect RPC over HTTP
+- **Authentication**: Bearer token (`Authorization: Bearer ostk_...`)
+- **Purpose**: Job distribution and result collection via polling
+- **Endpoints**: `GetJobs`, `SubmitResult`, `RenewLease`
 
-### Web API (:8082)
+### Web API (`:8080`)
 - **Protocol**: Connect RPC over HTTP
 - **Authentication**: Session-based (cookies)
-- **TLS**: Enabled by default (self-signed); can be disabled with `WEB_TLS_DISABLE=true`
-- **Purpose**: Frontend integration (also serves Enrollment Service)
-- **Services**: Dashboard data, monitor CRUD, user management
+- **Purpose**: Frontend integration and worker enrollment
+- **Services**: Dashboard data, monitor CRUD, user management, enrollment
 
 ## Core Services
 
@@ -73,14 +70,14 @@ graph TB
   - 1% jitter for 10s-30s intervals
   - 10% jitter for >30s intervals (thundering herd protection)
 
-### Dispatcher
-**Purpose**: Manages job leasing and worker communication
+### Worker Service
+**Purpose**: Handles worker job polling and result submission
 
-- **Pull-based model**: Workers request jobs when ready
+- **Pull-based model**: Workers poll `GetJobs` when ready for work
 - **Database-backed leases**: Uses `FOR UPDATE SKIP LOCKED`
-- **Lease management**: 45s timeout with 10s renewal cycles
-- **Region awareness**: Routes jobs to worker region; falls back to `global` jobs when needed
-- **Result handling**: ACK only after durable database commit
+- **Lease management**: Configurable timeout with renewal support
+- **Region awareness**: Routes jobs to worker region; falls back to `global` jobs
+- **Result handling**: Commits results to database before acknowledging
 
 ### Lease Reaper
 **Purpose**: Reclaims expired job leases
@@ -90,19 +87,11 @@ graph TB
 - Enables rapid failure recovery from crashed workers
 - Uses advisory locks to prevent duplicate reaping
 
-### Stream Health Monitor
-**Purpose**: Detects dead worker connections
-
-- Checks every 15 seconds; pings workers that haven't been pinged recently (≈30s)
-- Expects pong responses within timeout
-- Closes stalled streams to free resources
-- Works with Worker Inactivity Monitor for cleanup
-
 ### Worker Inactivity Monitor
 **Purpose**: Maintains worker registry health
 
-- Monitors worker heartbeats and last-seen timestamps
-- Marks inactive workers based on configurable thresholds
+- Monitors worker heartbeats via `last_seen_at` timestamps
+- Marks workers as inactive when `last_seen_at < NOW() - INTERVAL '2 minutes'` (scan cadence is configurable via `WORKER_INACTIVITY_INTERVAL`)
 - Updates worker status for dashboard visibility
 - Coordinates with lease reaper for job reassignment
 
@@ -114,49 +103,73 @@ graph TB
 - Enables safe retries when jobs are re-executed
 - Triggers continuous aggregate updates
 
-### PKI Manager
-**Purpose**: Certificate lifecycle management
-
-- Issues mTLS certificates for worker authentication
-- Stores CA and certificates securely:
-  - `~/.openseer/ca.pem` (user mode)
-  - `/var/lib/openseer/ca.pem` (system mode)
-- Handles certificate renewal and revocation
-- Manages enrollment token validation
-
 ## Web Services
 
 ### Dashboard Service
-- Aggregated metrics from continuous aggregates
-- Monitor health overview and recent failures
-- Real-time uptime statistics and latency percentiles
-- Regional performance breakdown
+- Computes monitor counts (total/enabled/disabled/healthy/unhealthy) from monitor configs plus latest per-monitor result
+- Returns monitor status snapshots in `recent_failures` (currently includes all monitors, not only failing ones)
+- Exposes regional worker health via `GetRegionHealth`
+- Currently returns placeholder values for `total_runs_24h`, `failed_runs_24h`, `overall_success_rate`, and `slowest_monitors`
 
 ### Monitors Service
 - CRUD operations for monitor configurations
 - Soft delete support with audit trails
-- Validation of URLs, intervals, and assertions
+- Basic required-field validation (`id`, `url`) plus defaults for interval/timeout/method/regions
 - Region targeting and scheduling metadata
 
 ### User Service
 - User profile and session management
 - Integration with Better Auth for authentication
 - Session-based API authentication
-- Account lifecycle management
+- Current RPC surface: `GetUserProfile` for the authenticated session user
 
 ### Enrollment Service
-- Worker registration and certificate issuance
-- Cluster token validation
-- Worker capability registration
-- Bootstrap secret distribution
+- Worker registration with cluster token validation
+- API token generation and distribution (`ostk_...` format)
+- Token renewal and revocation support
+- Worker status and token lifecycle management (capabilities are not populated in the current enrollment path)
+
+## Configuration
+
+Common runtime environment variables:
+
+```bash
+PORT=8080
+DATABASE_URL=postgres://openseer:openseer@localhost:5432/openseer?sslmode=disable
+CLUSTER_TOKEN=<required>
+BETTER_AUTH_SECRET=<required>
+API_ENDPOINT=http://control-plane:8080
+CORS_ORIGIN=http://localhost:3000
+SCHEDULER_POLL_INTERVAL=1s
+JOB_LEASE_DURATION=45s
+JOB_CLEANUP_INTERVAL=1m
+JOB_RETENTION_PERIOD=168h
+JOB_CLEANUP_BATCH_SIZE=1000
+LEASE_REAPER_INTERVAL=5s
+WORKER_INACTIVITY_INTERVAL=30s
+WORKER_HEARTBEAT_MIN_UPDATE_INTERVAL=15s
+WORKER_AUTH_CACHE_TTL=30s
+WORKER_AUTH_CACHE_MAX_ENTRIES=50000
+DB_MAX_OPEN_CONNS=100
+DB_MAX_IDLE_CONNS=25
+DB_CONN_MAX_LIFETIME=30m
+DB_CONN_MAX_IDLE_TIME=5m
+```
+
+Pool sizing notes:
+
+1. With multiple control-plane replicas, set `DB_MAX_OPEN_CONNS` per replica so total stays below your PostgreSQL (or pooler) capacity.
+2. Keep `DB_MAX_IDLE_CONNS` lower than `DB_MAX_OPEN_CONNS` to avoid idle connection bloat.
+3. Increase `DB_CONN_MAX_LIFETIME`/`DB_CONN_MAX_IDLE_TIME` in stable private networks to reduce churn.
+4. Tune `JOB_RETENTION_PERIOD` and `JOB_CLEANUP_BATCH_SIZE` so completed jobs do not accumulate indefinitely.
 
 ## Correctness Guarantees
 
-### Exactly-Once Job Assignment
+### At-Least-Once Job Processing
 1. **Database-level row locking** with `FOR UPDATE SKIP LOCKED`
 2. **Job state machine**: `ready → leased → done`
 3. **Worker ID enforcement** in all lease operations
-4. **Automatic lease expiry** returns jobs to ready state
+4. **Automatic lease expiry** returns jobs to `ready`, so jobs can be re-executed if a worker fails before commit
 
 ### Scheduling Precision
 - **Pre-scheduled jobs**: 5s look-ahead prevents delays
@@ -165,9 +178,9 @@ graph TB
 - **Leader election**: Only one scheduler creates jobs
 
 ### Result Durability
-- **ACK after commit**: Only acknowledge durable writes
+- **Commit before ACK**: Only acknowledge durable writes
 - **Idempotent ingest**: UPSERT by `(run_id, event_at)` allows retries
-- **Best-effort streaming**: Lease expiry handles failures
+- **Lease expiry fallback**: Handles worker failures gracefully
 
 ## Data Model
 
@@ -191,7 +204,7 @@ graph TB
 **workers**
 ```sql
 - id, hostname, region, version, status
-- enrolled_at, last_seen_at, certificate_expires_at
+- registered_at, enrolled_at, last_seen_at, token_hash
 - revoked_at, revoked_reason
 ```
 
@@ -202,7 +215,7 @@ graph TB
 - Partitioned by event_at (1-day chunks)
 - Request/response timings, HTTP status, payload size
 - Error messages and regional attribution
-- UPSERT by run_id for idempotency
+- UPSERT by `(run_id, event_at)` for idempotency
 ```
 
 **results_agg_1m/1h/1d** (Continuous Aggregates)
@@ -222,20 +235,17 @@ graph TB
 
 ## Security
 
-### mTLS for Workers
-- Client certificate authentication
-- Certificate-based worker identity
-- Secure enrollment with cluster tokens
-- CA certificate distribution
+### Token Authentication for Workers
+- Bearer token authentication (`Authorization: Bearer ostk_...`)
+- Token hash stored in database for validation
+- Secure token generation with cryptographic randomness
+- Token renewal and revocation support
 
 ### Session Authentication for Web
 - Cookie-based sessions
-- CSRF protection
-- Secure session storage
-- Token format: `tokenId.signature` (HMAC-SHA256 over tokenId with `BETTER_AUTH_SECRET`)
+- Session token signature verification (`tokenId.signature`, HMAC-SHA256 with `BETTER_AUTH_SECRET`)
 - Session lookup against `web/migrations/auth/schema.sql` tables (`session`, `user`)
+- CORS origin allowlist via `CORS_ORIGIN`
+- No explicit CSRF token middleware in the control-plane server today
 
-### Certificate Storage
-- Secure file permissions (0600 for private keys)
-- Appropriate data directories based on user context
-- Certificate expiry tracking and renewal
+For multi-cloud hardening guidance, see `docs/production-multicloud.md`.

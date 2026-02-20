@@ -184,6 +184,18 @@ FROM app.jobs
 WHERE monitor_id = $1
 AND deleted_at IS NOT NULL;
 
+-- name: DeleteDoneJobsBefore :execrows
+DELETE FROM app.jobs
+WHERE run_id IN (
+    SELECT j.run_id
+    FROM app.jobs j
+    WHERE j.status = 'done'
+      AND j.deleted_at IS NULL
+      AND j.scheduled_at < $1
+    ORDER BY j.scheduled_at
+    LIMIT $2
+);
+
 -- name: ForceExpireJobLease :exec
 UPDATE app.jobs
 SET lease_expires_at = $2

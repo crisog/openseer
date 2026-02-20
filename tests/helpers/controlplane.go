@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -24,8 +23,8 @@ import (
 	workerapi "github.com/crisog/openseer/internal/app/control-plane/api/worker"
 	"github.com/crisog/openseer/internal/app/control-plane/auth/session"
 	metrics "github.com/crisog/openseer/internal/app/control-plane/metrics"
+	"github.com/crisog/openseer/internal/app/control-plane/middleware"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
-	"github.com/crisog/openseer/internal/pkg/auth"
 )
 
 type ControlPlaneTestEnvironment struct {
@@ -37,13 +36,13 @@ type ControlPlaneTestEnvironment struct {
 
 	TestDB *TestDB
 
-	Queries    *sqlc.Queries
-	Dispatcher *controlplane.Dispatcher
-	Scheduler  *controlplane.Scheduler
-	Ingest     *metrics.Ingest
+	Queries           *sqlc.Queries
+	LeaseReaper       *controlplane.LeaseReaper
+	InactivityMonitor *controlplane.WorkerInactivityMonitor
+	Scheduler         *controlplane.Scheduler
+	Ingest            *metrics.Ingest
+	WorkerAuthCache   *middleware.WorkerAuthCache
 
-	AuthService       *auth.AuthService
-	PKI               *auth.PKI
 	ClusterToken      string
 	APIEndpoint       string
 	EnrollmentService *enrollment.EnrollmentService
@@ -60,31 +59,15 @@ func SetupControlPlane(t *testing.T) *ControlPlaneTestEnvironment {
 	logger := zaptest.NewLogger(t)
 
 	clusterToken := "test-cluster-token"
+	workerAuthCache := middleware.NewWorkerAuthCache(5*time.Minute, 10000)
 
-	dataDir := t.TempDir()
-	prevDataDir, hadPrev := os.LookupEnv("OPENSEER_DATA_DIR")
-	require.NoError(t, os.Setenv("OPENSEER_DATA_DIR", dataDir))
-	t.Cleanup(func() {
-		if hadPrev {
-			require.NoError(t, os.Setenv("OPENSEER_DATA_DIR", prevDataDir))
-		} else {
-			require.NoError(t, os.Unsetenv("OPENSEER_DATA_DIR"))
-		}
-	})
-
-	pkiManager, err := auth.NewPKI()
-	require.NoError(t, err)
-
-	authService, err := auth.NewAuthService(clusterToken, pkiManager, logger)
-	require.NoError(t, err)
-	authService.StartCleanupWorker()
-
-	dispatcher := controlplane.New(testDB.Queries, testDB.DB, 10*time.Second, 1*time.Second, 1*time.Second, 1*time.Second)
+	leaseReaper := controlplane.NewLeaseReaper(testDB.Queries, testDB.DB, 1*time.Second)
+	inactivityMonitor := controlplane.NewWorkerInactivityMonitor(testDB.Queries, 1*time.Second)
 	ingest := metrics.New(testDB.Queries)
 	scheduler := controlplane.NewScheduler(testDB.Queries, testDB.DB, 200*time.Millisecond)
 
-	enrollmentService := enrollment.NewEnrollmentService(testDB.Queries, logger, pkiManager, clusterToken, "grpc://test-control-plane:8080")
-	workerService := workerapi.NewWorkerService(testDB.Queries, logger, dispatcher, ingest, authService)
+	enrollmentService := enrollment.NewEnrollmentService(testDB.Queries, logger, clusterToken, "http://test-control-plane:8080", workerAuthCache)
+	workerService := workerapi.NewWorkerService(testDB.Queries, logger, ingest, 10*time.Second, 200*time.Millisecond)
 	monitorsService := monitorsapi.NewMonitorsService(testDB.Queries, logger)
 	dashboardService := dashboard.NewDashboardService(testDB.Queries, logger)
 	userService := user.NewUserService(testDB.Queries, logger)
@@ -97,13 +80,13 @@ func SetupControlPlane(t *testing.T) *ControlPlaneTestEnvironment {
 		cancel:            cancel,
 		TestDB:            testDB,
 		Queries:           testDB.Queries,
-		Dispatcher:        dispatcher,
+		LeaseReaper:       leaseReaper,
+		InactivityMonitor: inactivityMonitor,
 		Scheduler:         scheduler,
 		Ingest:            ingest,
-		AuthService:       authService,
-		PKI:               pkiManager,
+		WorkerAuthCache:   workerAuthCache,
 		ClusterToken:      clusterToken,
-		APIEndpoint:       "grpc://test-control-plane:8080",
+		APIEndpoint:       "http://test-control-plane:8080",
 		EnrollmentService: enrollmentService,
 		WorkerService:     workerService,
 		MonitorsService:   monitorsService,
@@ -121,32 +104,16 @@ func SetupControlPlaneWithDB(t *testing.T, sharedDB *sql.DB) *ControlPlaneTestEn
 
 	logger := zaptest.NewLogger(t)
 	clusterToken := "test-cluster-token"
-
-	dataDir := t.TempDir()
-	prevDataDir, hadPrev := os.LookupEnv("OPENSEER_DATA_DIR")
-	require.NoError(t, os.Setenv("OPENSEER_DATA_DIR", dataDir))
-	t.Cleanup(func() {
-		if hadPrev {
-			require.NoError(t, os.Setenv("OPENSEER_DATA_DIR", prevDataDir))
-		} else {
-			require.NoError(t, os.Unsetenv("OPENSEER_DATA_DIR"))
-		}
-	})
-
-	pkiManager, err := auth.NewPKI()
-	require.NoError(t, err)
-
-	authService, err := auth.NewAuthService(clusterToken, pkiManager, logger)
-	require.NoError(t, err)
-	authService.StartCleanupWorker()
+	workerAuthCache := middleware.NewWorkerAuthCache(5*time.Minute, 10000)
 
 	queries := sqlc.New(sharedDB)
-	dispatcher := controlplane.New(queries, sharedDB, 10*time.Second, 1*time.Second, 1*time.Second, 1*time.Second)
+	leaseReaper := controlplane.NewLeaseReaper(queries, sharedDB, 1*time.Second)
+	inactivityMonitor := controlplane.NewWorkerInactivityMonitor(queries, 1*time.Second)
 	ingest := metrics.New(queries)
 	scheduler := controlplane.NewScheduler(queries, sharedDB, 200*time.Millisecond)
 
-	enrollmentService := enrollment.NewEnrollmentService(queries, logger, pkiManager, clusterToken, "grpc://test-control-plane-2:8080")
-	workerService := workerapi.NewWorkerService(queries, logger, dispatcher, ingest, authService)
+	enrollmentService := enrollment.NewEnrollmentService(queries, logger, clusterToken, "http://test-control-plane-2:8080", workerAuthCache)
+	workerService := workerapi.NewWorkerService(queries, logger, ingest, 10*time.Second, 200*time.Millisecond)
 	monitorsService := monitorsapi.NewMonitorsService(queries, logger)
 	dashboardService := dashboard.NewDashboardService(queries, logger)
 	userService := user.NewUserService(queries, logger)
@@ -159,13 +126,13 @@ func SetupControlPlaneWithDB(t *testing.T, sharedDB *sql.DB) *ControlPlaneTestEn
 		cancel:            cancel,
 		TestDB:            nil,
 		Queries:           queries,
-		Dispatcher:        dispatcher,
+		LeaseReaper:       leaseReaper,
+		InactivityMonitor: inactivityMonitor,
 		Scheduler:         scheduler,
 		Ingest:            ingest,
-		AuthService:       authService,
-		PKI:               pkiManager,
+		WorkerAuthCache:   workerAuthCache,
 		ClusterToken:      clusterToken,
-		APIEndpoint:       "grpc://test-control-plane-2:8080",
+		APIEndpoint:       "http://test-control-plane-2:8080",
 		EnrollmentService: enrollmentService,
 		WorkerService:     workerService,
 		MonitorsService:   monitorsService,
@@ -183,9 +150,8 @@ func (env *ControlPlaneTestEnvironment) Context() context.Context {
 }
 
 func (env *ControlPlaneTestEnvironment) StartBackgroundServices() {
-	env.startLoop("dispatcher-lease-reaper", env.Dispatcher.StartLeaseReaper)
-	env.startLoop("dispatcher-stream-health", env.Dispatcher.StartStreamHealthMonitor)
-	env.startLoop("dispatcher-worker-inactivity", env.Dispatcher.StartWorkerInactivityMonitor)
+	env.startLoop("lease-reaper", env.LeaseReaper.Start)
+	env.startLoop("inactivity-monitor", env.InactivityMonitor.Start)
 	env.startLoop("scheduler", env.Scheduler.Start)
 }
 
@@ -197,56 +163,31 @@ func (env *ControlPlaneTestEnvironment) startLoop(_ string, fn func(context.Cont
 	}()
 }
 
-func (env *ControlPlaneTestEnvironment) StartWorkerServer(t *testing.T, hosts ...string) *httptest.Server {
+func (env *ControlPlaneTestEnvironment) StartWorkerServer(t *testing.T, _ ...string) *httptest.Server {
 	t.Helper()
-
-	if len(hosts) == 0 {
-		hosts = []string{"localhost"}
-	}
 
 	workerPath, workerHandler := openseerv1connect.NewWorkerServiceHandler(env.WorkerService)
 
 	mux := http.NewServeMux()
-	mux.Handle(workerPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
-			cn := r.TLS.PeerCertificates[0].Subject.CommonName
-			ctx = context.WithValue(ctx, workerapi.WorkerIDContextKey, cn)
-		}
-		workerHandler.ServeHTTP(w, r.WithContext(ctx))
-	}))
+	mux.Handle(workerPath, middleware.TokenAuthHandlerWithCache(env.Queries, env.WorkerAuthCache, workerHandler))
 
-	tlsConfig, err := env.AuthService.CreateServerTLSConfig(hosts)
-	require.NoError(t, err)
-
-	server := httptest.NewUnstartedServer(mux)
-	server.EnableHTTP2 = true
-	server.TLS = tlsConfig
-	server.StartTLS()
+	server := httptest.NewServer(mux)
+	env.EnrollmentService.SetAPIEndpoint(server.URL)
+	env.APIEndpoint = server.URL
 
 	t.Cleanup(server.Close)
 	return server
 }
 
-func (env *ControlPlaneTestEnvironment) StartEnrollmentServer(t *testing.T, hosts ...string) *httptest.Server {
+func (env *ControlPlaneTestEnvironment) StartEnrollmentServer(t *testing.T, _ ...string) *httptest.Server {
 	t.Helper()
-
-	if len(hosts) == 0 {
-		hosts = []string{"localhost"}
-	}
 
 	enrollmentPath, handler := openseerv1connect.NewEnrollmentServiceHandler(env.EnrollmentService)
 
 	mux := http.NewServeMux()
 	mux.Handle(enrollmentPath, handler)
 
-	tlsConfig, err := env.AuthService.CreateWebServerTLSConfig(hosts)
-	require.NoError(t, err)
-
-	server := httptest.NewUnstartedServer(mux)
-	server.EnableHTTP2 = true
-	server.TLS = tlsConfig
-	server.StartTLS()
+	server := httptest.NewServer(mux)
 
 	t.Cleanup(server.Close)
 	return server
@@ -280,15 +221,6 @@ func (env *ControlPlaneTestEnvironment) Shutdown() {
 
 func NewRequest[T any](msg *T) *connect.Request[T] {
 	return connect.NewRequest(msg)
-}
-
-func WaitForWorkerRegistration(t *testing.T, dispatcher *controlplane.Dispatcher, expectedCount int, timeout time.Duration) {
-	t.Helper()
-	require.Eventually(t, func() bool {
-		count := dispatcher.GetWorkerCount()
-		t.Logf("Current worker count: %d, expected: %d", count, expectedCount)
-		return count == expectedCount
-	}, timeout, 100*time.Millisecond, fmt.Sprintf("Expected %d workers to register", expectedCount))
 }
 
 func WaitForJobCompletion(t *testing.T, queries *sqlc.Queries, runID string, timeout time.Duration) {

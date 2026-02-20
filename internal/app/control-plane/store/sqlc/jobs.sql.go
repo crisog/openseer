@@ -184,6 +184,32 @@ func (q *Queries) CreateJobIdempotent(ctx context.Context, arg *CreateJobIdempot
 	return &i, err
 }
 
+const deleteDoneJobsBefore = `-- name: DeleteDoneJobsBefore :execrows
+DELETE FROM app.jobs
+WHERE run_id IN (
+    SELECT j.run_id
+    FROM app.jobs j
+    WHERE j.status = 'done'
+      AND j.deleted_at IS NULL
+      AND j.scheduled_at < $1
+    ORDER BY j.scheduled_at
+    LIMIT $2
+)
+`
+
+type DeleteDoneJobsBeforeParams struct {
+	ScheduledAt time.Time `json:"scheduled_at"`
+	Limit       int32     `json:"limit"`
+}
+
+func (q *Queries) DeleteDoneJobsBefore(ctx context.Context, arg *DeleteDoneJobsBeforeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteDoneJobsBefore, arg.ScheduledAt, arg.Limit)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const forceExpireJobLease = `-- name: ForceExpireJobLease :exec
 UPDATE app.jobs
 SET lease_expires_at = $2

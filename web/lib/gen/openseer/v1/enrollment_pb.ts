@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file openseer/v1/enrollment.proto.
  */
 export const file_openseer_v1_enrollment: GenFile = /*@__PURE__*/
-  fileDesc("ChxvcGVuc2Vlci92MS9lbnJvbGxtZW50LnByb3RvEgtvcGVuc2Vlci52MSL5AQoTRW5yb2xsV29ya2VyUmVxdWVzdBIWCg53b3JrZXJfdmVyc2lvbhgBIAEoCRIOCgZyZWdpb24YAiABKAkSEAoIaG9zdG5hbWUYAyABKAkSSAoMY2FwYWJpbGl0aWVzGAQgAygLMjIub3BlbnNlZXIudjEuRW5yb2xsV29ya2VyUmVxdWVzdC5DYXBhYmlsaXRpZXNFbnRyeRIYChBlbnJvbGxtZW50X3Rva2VuGAUgASgJEg8KB2Nzcl9wZW0YBiABKAkaMwoRQ2FwYWJpbGl0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKiAQoURW5yb2xsV29ya2VyUmVzcG9uc2USEQoJd29ya2VyX2lkGAEgASgJEhAKCGFjY2VwdGVkGAIgASgIEg4KBnJlYXNvbhgDIAEoCRITCgtjZXJ0aWZpY2F0ZRgEIAEoCRISCgpleHBpcmVzX2F0GAYgASgDEhQKDGFwaV9lbmRwb2ludBgHIAEoCRIWCg5jYV9jZXJ0aWZpY2F0ZRgIIAEoCSI8ChZSZW5ld0Vucm9sbG1lbnRSZXF1ZXN0EhEKCXdvcmtlcl9pZBgBIAEoCRIPCgdjc3JfcGVtGAIgASgJImMKF1JlbmV3RW5yb2xsbWVudFJlc3BvbnNlEg8KB3JlbmV3ZWQYASABKAgSEwoLY2VydGlmaWNhdGUYAiABKAkSEgoKZXhwaXJlc19hdBgEIAEoAxIOCgZyZWFzb24YBSABKAkiPAoXUmV2b2tlRW5yb2xsbWVudFJlcXVlc3QSEQoJd29ya2VyX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCSI8ChhSZXZva2VFbnJvbGxtZW50UmVzcG9uc2USDwoHcmV2b2tlZBgBIAEoCBIPCgdtZXNzYWdlGAIgASgJIisKFkdldFdvcmtlclN0YXR1c1JlcXVlc3QSEQoJd29ya2VyX2lkGAEgASgJIqQCChdHZXRXb3JrZXJTdGF0dXNSZXNwb25zZRIRCgl3b3JrZXJfaWQYASABKAkSDgoGc3RhdHVzGAIgASgJEhMKC2Vucm9sbGVkX2F0GAMgASgDEhQKDGxhc3Rfc2Vlbl9hdBgEIAEoAxIOCgZyZWdpb24YBSABKAkSEAoIaG9zdG5hbWUYBiABKAkSFgoOd29ya2VyX3ZlcnNpb24YByABKAkSTAoMY2FwYWJpbGl0aWVzGAggAygLMjYub3BlbnNlZXIudjEuR2V0V29ya2VyU3RhdHVzUmVzcG9uc2UuQ2FwYWJpbGl0aWVzRW50cnkaMwoRQ2FwYWJpbGl0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJbChJMaXN0V29ya2Vyc1JlcXVlc3QSDgoGcmVnaW9uGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIRCglwYWdlX3NpemUYAyABKAUSEgoKcGFnZV90b2tlbhgEIAEoCSJtChNMaXN0V29ya2Vyc1Jlc3BvbnNlEigKB3dvcmtlcnMYASADKAsyFy5vcGVuc2Vlci52MS5Xb3JrZXJJbmZvEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRITCgt0b3RhbF9jb3VudBgDIAEoBSKUAQoKV29ya2VySW5mbxIRCgl3b3JrZXJfaWQYASABKAkSDgoGc3RhdHVzGAIgASgJEhMKC2Vucm9sbGVkX2F0GAMgASgDEhQKDGxhc3Rfc2Vlbl9hdBgEIAEoAxIOCgZyZWdpb24YBSABKAkSEAoIaG9zdG5hbWUYBiABKAkSFgoOd29ya2VyX3ZlcnNpb24YByABKAky1wMKEUVucm9sbG1lbnRTZXJ2aWNlElMKDEVucm9sbFdvcmtlchIgLm9wZW5zZWVyLnYxLkVucm9sbFdvcmtlclJlcXVlc3QaIS5vcGVuc2Vlci52MS5FbnJvbGxXb3JrZXJSZXNwb25zZRJcCg9SZW5ld0Vucm9sbG1lbnQSIy5vcGVuc2Vlci52MS5SZW5ld0Vucm9sbG1lbnRSZXF1ZXN0GiQub3BlbnNlZXIudjEuUmVuZXdFbnJvbGxtZW50UmVzcG9uc2USXwoQUmV2b2tlRW5yb2xsbWVudBIkLm9wZW5zZWVyLnYxLlJldm9rZUVucm9sbG1lbnRSZXF1ZXN0GiUub3BlbnNlZXIudjEuUmV2b2tlRW5yb2xsbWVudFJlc3BvbnNlElwKD0dldFdvcmtlclN0YXR1cxIjLm9wZW5zZWVyLnYxLkdldFdvcmtlclN0YXR1c1JlcXVlc3QaJC5vcGVuc2Vlci52MS5HZXRXb3JrZXJTdGF0dXNSZXNwb25zZRJQCgtMaXN0V29ya2VycxIfLm9wZW5zZWVyLnYxLkxpc3RXb3JrZXJzUmVxdWVzdBogLm9wZW5zZWVyLnYxLkxpc3RXb3JrZXJzUmVzcG9uc2VCN1o1Z2l0aHViLmNvbS9jcmlzb2cvb3BlbnNlZXIvZ2VuL29wZW5zZWVyL3YxO29wZW5zZWVydjFiBnByb3RvMw");
+  fileDesc("ChxvcGVuc2Vlci92MS9lbnJvbGxtZW50LnByb3RvEgtvcGVuc2Vlci52MSLoAQoTRW5yb2xsV29ya2VyUmVxdWVzdBIWCg53b3JrZXJfdmVyc2lvbhgBIAEoCRIOCgZyZWdpb24YAiABKAkSEAoIaG9zdG5hbWUYAyABKAkSSAoMY2FwYWJpbGl0aWVzGAQgAygLMjIub3BlbnNlZXIudjEuRW5yb2xsV29ya2VyUmVxdWVzdC5DYXBhYmlsaXRpZXNFbnRyeRIYChBlbnJvbGxtZW50X3Rva2VuGAUgASgJGjMKEUNhcGFiaWxpdGllc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEidAoURW5yb2xsV29ya2VyUmVzcG9uc2USEQoJd29ya2VyX2lkGAEgASgJEhAKCGFjY2VwdGVkGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIRCglhcGlfdG9rZW4YBCABKAkSFAoMYXBpX2VuZHBvaW50GAUgASgJIisKFlJlbmV3RW5yb2xsbWVudFJlcXVlc3QSEQoJd29ya2VyX2lkGAEgASgJIk0KF1JlbmV3RW5yb2xsbWVudFJlc3BvbnNlEg8KB3JlbmV3ZWQYASABKAgSEQoJYXBpX3Rva2VuGAIgASgJEg4KBnJlYXNvbhgDIAEoCSI8ChdSZXZva2VFbnJvbGxtZW50UmVxdWVzdBIRCgl3b3JrZXJfaWQYASABKAkSDgoGcmVhc29uGAIgASgJIjwKGFJldm9rZUVucm9sbG1lbnRSZXNwb25zZRIPCgdyZXZva2VkGAEgASgIEg8KB21lc3NhZ2UYAiABKAkiKwoWR2V0V29ya2VyU3RhdHVzUmVxdWVzdBIRCgl3b3JrZXJfaWQYASABKAkipAIKF0dldFdvcmtlclN0YXR1c1Jlc3BvbnNlEhEKCXdvcmtlcl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLZW5yb2xsZWRfYXQYAyABKAMSFAoMbGFzdF9zZWVuX2F0GAQgASgDEg4KBnJlZ2lvbhgFIAEoCRIQCghob3N0bmFtZRgGIAEoCRIWCg53b3JrZXJfdmVyc2lvbhgHIAEoCRJMCgxjYXBhYmlsaXRpZXMYCCADKAsyNi5vcGVuc2Vlci52MS5HZXRXb3JrZXJTdGF0dXNSZXNwb25zZS5DYXBhYmlsaXRpZXNFbnRyeRozChFDYXBhYmlsaXRpZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIlsKEkxpc3RXb3JrZXJzUmVxdWVzdBIOCgZyZWdpb24YASABKAkSDgoGc3RhdHVzGAIgASgJEhEKCXBhZ2Vfc2l6ZRgDIAEoBRISCgpwYWdlX3Rva2VuGAQgASgJIm0KE0xpc3RXb3JrZXJzUmVzcG9uc2USKAoHd29ya2VycxgBIAMoCzIXLm9wZW5zZWVyLnYxLldvcmtlckluZm8SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJEhMKC3RvdGFsX2NvdW50GAMgASgFIpQBCgpXb3JrZXJJbmZvEhEKCXdvcmtlcl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLZW5yb2xsZWRfYXQYAyABKAMSFAoMbGFzdF9zZWVuX2F0GAQgASgDEg4KBnJlZ2lvbhgFIAEoCRIQCghob3N0bmFtZRgGIAEoCRIWCg53b3JrZXJfdmVyc2lvbhgHIAEoCTLXAwoRRW5yb2xsbWVudFNlcnZpY2USUwoMRW5yb2xsV29ya2VyEiAub3BlbnNlZXIudjEuRW5yb2xsV29ya2VyUmVxdWVzdBohLm9wZW5zZWVyLnYxLkVucm9sbFdvcmtlclJlc3BvbnNlElwKD1JlbmV3RW5yb2xsbWVudBIjLm9wZW5zZWVyLnYxLlJlbmV3RW5yb2xsbWVudFJlcXVlc3QaJC5vcGVuc2Vlci52MS5SZW5ld0Vucm9sbG1lbnRSZXNwb25zZRJfChBSZXZva2VFbnJvbGxtZW50EiQub3BlbnNlZXIudjEuUmV2b2tlRW5yb2xsbWVudFJlcXVlc3QaJS5vcGVuc2Vlci52MS5SZXZva2VFbnJvbGxtZW50UmVzcG9uc2USXAoPR2V0V29ya2VyU3RhdHVzEiMub3BlbnNlZXIudjEuR2V0V29ya2VyU3RhdHVzUmVxdWVzdBokLm9wZW5zZWVyLnYxLkdldFdvcmtlclN0YXR1c1Jlc3BvbnNlElAKC0xpc3RXb3JrZXJzEh8ub3BlbnNlZXIudjEuTGlzdFdvcmtlcnNSZXF1ZXN0GiAub3BlbnNlZXIudjEuTGlzdFdvcmtlcnNSZXNwb25zZUI3WjVnaXRodWIuY29tL2NyaXNvZy9vcGVuc2Vlci9nZW4vb3BlbnNlZXIvdjE7b3BlbnNlZXJ2MWIGcHJvdG8z");
 
 /**
  * @generated from message openseer.v1.EnrollWorkerRequest
@@ -40,11 +40,6 @@ export type EnrollWorkerRequest = Message<"openseer.v1.EnrollWorkerRequest"> & {
    * @generated from field: string enrollment_token = 5;
    */
   enrollmentToken: string;
-
-  /**
-   * @generated from field: string csr_pem = 6;
-   */
-  csrPem: string;
 };
 
 /**
@@ -74,24 +69,14 @@ export type EnrollWorkerResponse = Message<"openseer.v1.EnrollWorkerResponse"> &
   reason: string;
 
   /**
-   * @generated from field: string certificate = 4;
+   * @generated from field: string api_token = 4;
    */
-  certificate: string;
+  apiToken: string;
 
   /**
-   * @generated from field: int64 expires_at = 6;
-   */
-  expiresAt: bigint;
-
-  /**
-   * @generated from field: string api_endpoint = 7;
+   * @generated from field: string api_endpoint = 5;
    */
   apiEndpoint: string;
-
-  /**
-   * @generated from field: string ca_certificate = 8;
-   */
-  caCertificate: string;
 };
 
 /**
@@ -109,11 +94,6 @@ export type RenewEnrollmentRequest = Message<"openseer.v1.RenewEnrollmentRequest
    * @generated from field: string worker_id = 1;
    */
   workerId: string;
-
-  /**
-   * @generated from field: string csr_pem = 2;
-   */
-  csrPem: string;
 };
 
 /**
@@ -133,17 +113,12 @@ export type RenewEnrollmentResponse = Message<"openseer.v1.RenewEnrollmentRespon
   renewed: boolean;
 
   /**
-   * @generated from field: string certificate = 2;
+   * @generated from field: string api_token = 2;
    */
-  certificate: string;
+  apiToken: string;
 
   /**
-   * @generated from field: int64 expires_at = 4;
-   */
-  expiresAt: bigint;
-
-  /**
-   * @generated from field: string reason = 5;
+   * @generated from field: string reason = 3;
    */
   reason: string;
 };

@@ -1,25 +1,25 @@
 # Worker Architecture
 
-Workers are distributed Go agents that execute HTTP monitoring checks across geographic regions. They maintain persistent connections to the Control Plane and operate using a pull-based job model.
+Workers are distributed Go agents that execute HTTP monitoring checks across geographic regions. They communicate with the Control Plane using a simple HTTP polling model with bearer token authentication.
 
 ## Overview
 
 ```mermaid
 graph TB
-    ControlPlane[🎯 Control Plane<br/>:8081 gRPC + mTLS]
+    ControlPlane[🎯 Control Plane<br/>:8080 HTTP + Token Auth]
 
     subgraph "Worker Process"
-        Connection[🔗 Connection Manager]
+        Enrollment[📝 Enrollment Client]
+        Poller[🔄 Job Poller]
         JobExecutor[⚡ Job Executor]
         HTTPClient[🌐 HTTP Client]
-        Certificate[🔐 Certificate Manager]
-        Heartbeat[💓 Heartbeat Manager]
+        ResultSubmitter[📤 Result Submitter]
     end
 
     subgraph "Job Flow"
-        RequestJobs[📋 Request Jobs]
+        PollJobs[📋 Poll GetJobs]
         ExecuteCheck[🔍 Execute HTTP Check]
-        StreamResult[📤 Stream Result]
+        SubmitResult[📤 Submit Result]
         RenewLease[🔄 Renew Lease]
     end
 
@@ -30,17 +30,20 @@ graph TB
         API2[🔌 API Endpoint 2]
     end
 
-    ControlPlane <-.->|Bidirectional<br/>gRPC Stream| Connection
+    Enrollment -->|Cluster Token| ControlPlane
+    ControlPlane -->|API Token| Enrollment
 
-    Connection --> JobExecutor
+    Poller -->|Bearer Token| ControlPlane
+    ResultSubmitter -->|Bearer Token| ControlPlane
+
+    Poller --> JobExecutor
     JobExecutor --> HTTPClient
-    Certificate -.-> Connection
-    Heartbeat -.-> Connection
+    JobExecutor --> ResultSubmitter
 
-    RequestJobs --> ExecuteCheck
-    ExecuteCheck --> StreamResult
-    StreamResult --> RenewLease
-    RenewLease --> RequestJobs
+    PollJobs --> ExecuteCheck
+    ExecuteCheck --> SubmitResult
+    SubmitResult --> RenewLease
+    RenewLease --> PollJobs
 
     HTTPClient --> Website1
     HTTPClient --> Website2
@@ -50,129 +53,140 @@ graph TB
 
 ## Core Components
 
-### Connection Manager
-**Purpose**: Maintains persistent gRPC connection to Control Plane
+### Enrollment Client
+**Purpose**: Handles initial worker registration
 
-- **Outbound-only connections**: Workers initiate all connections
-- **mTLS authentication**: Uses enrolled client certificates
-- **Exponential backoff**: Reconnection strategy for network failures
-- **Stream health**: Responds to ping/pong heartbeats
-- **Graceful shutdown**: Completes in-flight work before exit
+- **Cluster token validation**: Uses shared cluster token for enrollment
+- **API token retrieval**: Receives bearer token (`ostk_...`) for subsequent requests
+- **Region registration**: Declares worker's geographic region
+- **Token refresh**: Renews API token when Worker API calls return unauthenticated
 
-**Connection Flow**:
-1. Load mTLS certificate from secure storage
-2. Establish gRPC stream to Control Plane
-3. Send RegisterRequest with worker metadata
-4. Maintain bidirectional message flow
-5. Handle connection failures with backoff
+**Enrollment Flow**:
+1. Connect to enrollment endpoint with cluster token
+2. Send worker metadata (hostname, version, region)
+3. Receive API token and worker ID
+4. Store token for subsequent API calls
+
+### Job Poller
+**Purpose**: Fetches available jobs from Control Plane
+
+- **Pull-based model**: Worker requests jobs when capacity available
+- **Configurable polling interval**: Default 1 second
+- **Concurrency awareness**: Requests only as many jobs as can be processed
+- **Region filtering**: Only receives jobs matching worker's region or `global`
+
+**Polling Loop**:
+```
+current_interval = poll_base_interval
+while running:
+    available_slots = max_concurrency - active_jobs
+    if available_slots > 0:
+        jobs, err = GetJobs(max_jobs: available_slots)
+        for job in jobs:
+            spawn execute_job(job)
+        if err or len(jobs) == 0:
+            current_interval = min(current_interval * 2, poll_max_interval)
+        else:
+            current_interval = poll_base_interval
+    else:
+        current_interval = poll_base_interval
+    sleep(current_interval)
+```
 
 ### Job Executor
 **Purpose**: Orchestrates HTTP check execution and lifecycle
 
-- **Pull-based requests**: Explicitly requests jobs when ready
-- **Concurrency control**: Configurable max parallel jobs
-- **Lease management**: Automatic renewal for long-running checks
-- **Result streaming**: Best-effort delivery with fallback to lease expiry
+- **Concurrent execution**: Configurable max parallel jobs
+- **Lease management**: Automatic renewal for long-running checks (>20s timeout)
 - **Timeout handling**: Respects per-check timeout configurations
+- **Error capture**: Comprehensive error handling and reporting
 
 **Execution Flow**:
-1. Request N jobs when capacity available
-2. Receive CheckJob assignments from Control Plane
-3. Execute HTTP checks concurrently
-4. Stream results back immediately
-5. Renew leases for checks >20 seconds
-6. Request new jobs after completion
+1. Create job context with timeout
+2. Register job in active jobs map
+3. Start lease renewal goroutine (if timeout >20s)
+4. Execute HTTP check
+5. Submit result to Control Plane
+6. Clean up job state
 
 ### HTTP Client
 **Purpose**: Executes actual HTTP monitoring checks
 
-- **Custom headers**: Supports arbitrary request headers
-- **Method support**: GET, POST, PUT, DELETE, HEAD, OPTIONS
+- **Method support**: GET, POST, PUT, DELETE, HEAD, OPTIONS, PATCH
+- **Custom headers**: Supports arbitrary request headers from monitor config
 - **Timeout enforcement**: Per-check timeout with context cancellation
-- **Response capture**: Status code, timing, payload size, headers
+- **Timing capture**: DNS, connect, TLS, TTFB, download timings
+- **Response capture**: Status code and payload size
 - **Error handling**: Network errors, DNS failures, timeouts
-- **TLS verification**: Configurable certificate validation
 
-**Check Execution**:
+**Check Result**:
 ```go
-type CheckResult struct {
-    RunID           string
-    Status          string  // "OK", "ERROR", "TIMEOUT"
-    HTTPStatusCode  int
-    ResponseTimeMS  int64
-    DNSTimeMS       int64
-    ConnectTimeMS   int64
-    TLSTimeMS       int64
-    ResponseBytes   int64
-    ErrorMessage    string
-    Region          string
+type MonitorResult struct {
+    RunID        string
+    MonitorID    string
+    Region       string
+    Status       string  // "OK", "ERROR", "FAIL"
+    HTTPCode     int32
+    TotalMs      int32
+    DNSMs        int32
+    ConnectMs    int32
+    TLSMs        int32
+    TTFBMs       int32
+    DownloadMs   int32
+    SizeBytes    int64
+    ErrorMessage string
 }
 ```
 
-### Certificate Manager
-**Purpose**: Handles mTLS certificate lifecycle
+### Result Submitter
+**Purpose**: Sends check results back to Control Plane
 
-- **Enrollment flow**: Initial certificate request using cluster token
-- **Secure storage**: Certificates stored with proper file permissions
-- **Auto-renewal**: Proactive certificate refresh before expiry
-- **CA validation**: Verifies Control Plane certificates
-- **Bootstrap security**: HTTPS enrollment with bundled CA
-
-**Certificate Locations**:
-- **User mode**: `~/.openseer/worker-cert.pem`, `~/.openseer/worker-key.pem`
-- **System mode**: `/var/lib/openseer/worker-cert.pem`, `/var/lib/openseer/worker-key.pem`
-- **CA bundle**: `ENROLLMENT_CA_FILE` environment variable
-
-### Heartbeat Manager
-**Purpose**: Maintains connection health and worker status
-
-- **Ping/Pong protocol**: Responds to Control Plane health checks
-- **Stream monitoring**: Detects connection failures
-- **Status reporting**: Periodic worker status updates
-- **Region reporting**: Geographic location for job routing
+- **Immediate submission**: Results sent as soon as check completes
+- **Retry logic**: Automatic retry on temporary failures
+- **Acknowledgment handling**: Waits for commit confirmation
+- **Job cleanup**: Removes job from active map after commit or after retry budget is exhausted
 
 ## Protocol Implementation
 
-### Bidirectional gRPC Messages
+### Worker API Endpoints
 
-**Worker → Control Plane**:
+**GetJobs** - Poll for available work
 ```protobuf
-message RegisterRequest {
-    string worker_version = 1;
-    string region = 2;
+message GetJobsRequest {
+    int32 max_jobs = 1;
 }
 
-message JobRequest {
-    int32 count = 1;
-}
-
-message CheckResult {
-    string run_id = 1;
-    string status = 2;
-    int64 response_time_ms = 3;
-    int32 http_status_code = 4;
-    string error_message = 5;
-    // ... timing details
-}
-
-message LeaseRenewal {
-    string run_id = 1;
-}
-
-message Pong {
-    int64 timestamp = 1;
+message GetJobsResponse {
+    repeated MonitorJob jobs = 1;
 }
 ```
 
-**Control Plane → Worker**:
+**SubmitResult** - Send check results
 ```protobuf
-message RegisterResponse {
-    string worker_id = 1;
-    bool accepted = 2;
-    string rejection_reason = 3;
+message SubmitResultRequest {
+    MonitorResult result = 1;
 }
 
-message CheckJob {
+message SubmitResultResponse {
+    bool committed = 1;
+    string run_id = 2;
+}
+```
+
+**RenewLease** - Extend job lease
+```protobuf
+message RenewLeaseRequest {
+    string run_id = 1;
+}
+
+message RenewLeaseResponse {
+    bool renewed = 1;
+}
+```
+
+### Job Message
+```protobuf
+message MonitorJob {
     string run_id = 1;
     string monitor_id = 2;
     string url = 3;
@@ -180,47 +194,46 @@ message CheckJob {
     string method = 5;
     map<string, string> headers = 6;
 }
-
-message ResultAck {
-    string run_id = 1;
-    bool committed = 2;
-}
-
-message Ping {
-    int64 timestamp = 1;
-}
 ```
 
 ## Deployment Patterns
 
-### Single Region
+### Single Worker
 ```bash
-# Example (envs) connecting to control plane at :8081 and enrolling via :8082
-REGION=us-east-1 CONTROL_PLANE_ADDR=cp.example.com:8081 ENROLLMENT_PORT=8082 CLUSTER_TOKEN=... ./worker
+REGION=us-east-1 \
+ENROLLMENT_URL=http://cp.example.com:8080 \
+CLUSTER_TOKEN=your-cluster-token \
+MAX_CONCURRENCY=10 \
+./worker
 ```
 
 ### Multi-Region Distribution
 ```yaml
-# docker-compose.yml
 version: '3.8'
 services:
   worker-us-east:
     image: openseer/worker
     environment:
       - REGION=us-east-1
-      - CONTROL_PLANE_URL=https://cp.example.com:8081
+      - ENROLLMENT_URL=http://cp.example.com:8080
+      - CLUSTER_TOKEN=${CLUSTER_TOKEN}
+      - MAX_CONCURRENCY=10
 
   worker-eu-west:
     image: openseer/worker
     environment:
       - REGION=eu-west-1
-      - CONTROL_PLANE_URL=https://cp.example.com:8081
+      - ENROLLMENT_URL=http://cp.example.com:8080
+      - CLUSTER_TOKEN=${CLUSTER_TOKEN}
+      - MAX_CONCURRENCY=10
 
   worker-ap-south:
     image: openseer/worker
     environment:
       - REGION=ap-south-1
-      - CONTROL_PLANE_URL=https://cp.example.com:8081
+      - ENROLLMENT_URL=http://cp.example.com:8080
+      - CLUSTER_TOKEN=${CLUSTER_TOKEN}
+      - MAX_CONCURRENCY=10
 ```
 
 ### Kubernetes Deployment
@@ -245,74 +258,85 @@ spec:
         env:
         - name: REGION
           value: "us-west-2"
-        - name: CONTROL_PLANE_URL
-          value: "https://openseer-cp:8081"
-        - name: ENROLLMENT_CA_FILE
-          value: "/etc/openseer/ca.pem"
-        volumeMounts:
-        - name: ca-cert
-          mountPath: /etc/openseer
-          readOnly: true
-      volumes:
-      - name: ca-cert
-        secret:
-          secretName: openseer-ca
+        - name: ENROLLMENT_URL
+          value: "http://openseer-cp:8080"
+        - name: CLUSTER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: openseer-secrets
+              key: cluster-token
+        - name: MAX_CONCURRENCY
+          value: "10"
 ```
 
 ## Configuration
 
 ### Environment Variables
 ```bash
-# Connection
-CONTROL_PLANE_ADDR=localhost:8081
-ENROLLMENT_PORT=8082
-ENROLLMENT_CA_FILE=/path/to/ca.pem
+ENROLLMENT_URL=http://localhost:8080
 CLUSTER_TOKEN=your-cluster-token
-
-# Worker Identity
 REGION=us-east-1
-WORKER_ID=worker-01
-
-# Performance
-MAX_CONCURRENCY=10
+MAX_CONCURRENCY=5
+POLL_BASE_INTERVAL=1s
+POLL_MAX_INTERVAL=10s
+RESULT_SUBMIT_MAX_ATTEMPTS=6
+RESULT_SUBMIT_RETRY_INTERVAL=5s
+RESULT_SUBMIT_TIMEOUT=10s
 ```
 
-### Notes
-- Enrollment is performed against the Web API on `ENROLLMENT_PORT` (default 8082).
-- Worker stream uses mTLS to the Worker API on `CONTROL_PLANE_ADDR` (default :8081).
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENROLLMENT_URL` | URL of enrollment endpoint | `http://localhost:8080` |
+| `CLUSTER_TOKEN` | Shared cluster enrollment token | Required |
+| `REGION` | Geographic region identifier | `us-east-1` |
+| `MAX_CONCURRENCY` | Maximum parallel job execution | `5` |
+| `POLL_BASE_INTERVAL` | Minimum polling interval | `1s` |
+| `POLL_MAX_INTERVAL` | Maximum polling backoff interval | `10s` |
+| `RESULT_SUBMIT_MAX_ATTEMPTS` | Max attempts to submit each result | `6` |
+| `RESULT_SUBMIT_RETRY_INTERVAL` | Delay between result submit retries | `5s` |
+| `RESULT_SUBMIT_TIMEOUT` | Per-request timeout for result submit RPC | `10s` |
 
 ## Security Model
 
 ### Enrollment Process
-1. **Bootstrap**: Worker starts with cluster token and CA bundle
-2. **HTTPS enrollment**: Connects to Control Plane enrollment endpoint
+1. **Bootstrap**: Worker starts with cluster token
+2. **Enrollment request**: Connects to Control Plane enrollment endpoint (`ENROLLMENT_URL`)
 3. **Token validation**: Control Plane verifies cluster token
-4. **Certificate issuance**: Worker receives mTLS client certificate
-5. **Secure storage**: Certificate saved with restricted permissions
-6. **mTLS connection**: Subsequent connections use client certificate
+4. **API token issuance**: Worker receives bearer token (`ostk_...`)
+5. **Token storage**: Token kept in memory for API calls
+6. **Authenticated requests**: All Worker API calls include bearer token
 
-### Certificate Security
-- **File permissions**: 0600 for private keys, 0644 for certificates
-- **Secure directories**: Platform-appropriate data directories
-- **Expiry monitoring**: Automatic renewal before expiration
-- **Revocation support**: Certificate can be revoked remotely
+### Token Security
+- **Secure generation**: Cryptographically random tokens
+- **Hash storage**: Only token hash stored server-side
+- **Revocation support**: Tokens can be revoked remotely
+- **No file storage**: Tokens kept in memory only
 
 ### Network Security
-- **mTLS mutual authentication**: Both client and server verify certificates
-- **Outbound-only connections**: Workers never accept inbound connections
-- **Certificate pinning**: Workers validate Control Plane certificate
-- **Secure enrollment**: Bootstrap uses HTTPS with CA validation
+- **Transport**: Worker uses the scheme in `ENROLLMENT_URL`/`ApiEndpoint` (HTTP in local/private defaults, HTTPS recommended for untrusted networks)
+- **Outbound-only**: Workers never accept inbound connections
+- **Token authentication**: Bearer token in Authorization header
 
 ## Reliability Features
 
 ### Connection Resilience
-- **Exponential backoff**: 1s, 2s, 4s, 8s, ... up to 5 minutes
-- **Connection pooling**: Persistent connection reuse
-- **Stream recovery**: Automatic reconnection on failures
-- **Graceful shutdown**: SIGTERM handling with job completion
+- **Automatic retry**: Exponential backoff on failures
+- **Adaptive polling**: Backoff between `POLL_BASE_INTERVAL` and `POLL_MAX_INTERVAL`
+- **Polling model**: No persistent connections to maintain
+- **Stateless design**: Easy recovery from crashes
+- **Shutdown behavior**: SIGTERM/SIGINT cancels active jobs; expired leases are reclaimed by the control plane
 
 ### Job Processing
-- **Best-effort delivery**: Stream results immediately when possible
 - **Lease-based recovery**: Jobs automatically reassigned on failure
 - **Timeout handling**: Context cancellation for stuck operations
-- **Resource limits**: Memory and CPU bounds per job
+- **Concurrency limits**: Maximum in-flight jobs bounded by `MAX_CONCURRENCY`
+- **Concurrent execution**: Parallel job processing with limits
+- **Bounded result retries**: Worker releases local slot after retry budget is exhausted
+
+### Lease Renewal
+- **Long-running jobs**: Automatic lease renewal for jobs >20s
+- **10-second interval**: Renewal requests every 10 seconds
+- **Failure handling**: Job continues if renewal fails
+- **Context cancellation**: Renewal stops when job completes
+
+For multi-cloud hardening guidance, see `docs/production-multicloud.md`.

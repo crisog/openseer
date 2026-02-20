@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	openseerv1 "github.com/crisog/openseer/gen/openseer/v1"
 	"github.com/crisog/openseer/gen/openseer/v1/openseerv1connect"
+	"github.com/crisog/openseer/internal/app/control-plane/middleware"
 	"github.com/crisog/openseer/internal/app/control-plane/store/sqlc"
 	"github.com/crisog/openseer/internal/pkg/auth"
 	"github.com/crisog/openseer/internal/pkg/regions"
@@ -22,19 +23,29 @@ type EnrollmentService struct {
 	openseerv1connect.UnimplementedEnrollmentServiceHandler
 	queries      *sqlc.Queries
 	logger       *zap.Logger
-	pkiManager   *auth.PKI
 	clusterToken string
 	apiEndpoint  string
+	authCache    *middleware.WorkerAuthCache
 }
 
-func NewEnrollmentService(queries *sqlc.Queries, logger *zap.Logger, pkiManager *auth.PKI, clusterToken, apiEndpoint string) *EnrollmentService {
+func NewEnrollmentService(
+	queries *sqlc.Queries,
+	logger *zap.Logger,
+	clusterToken, apiEndpoint string,
+	authCache *middleware.WorkerAuthCache,
+) *EnrollmentService {
 	return &EnrollmentService{
 		queries:      queries,
 		logger:       logger,
-		pkiManager:   pkiManager,
 		clusterToken: clusterToken,
 		apiEndpoint:  apiEndpoint,
+		authCache:    authCache,
 	}
+}
+
+// SetAPIEndpoint updates the advertised worker API endpoint (useful in tests).
+func (s *EnrollmentService) SetAPIEndpoint(endpoint string) {
+	s.apiEndpoint = endpoint
 }
 
 func (s *EnrollmentService) EnrollWorker(
@@ -62,36 +73,43 @@ func (s *EnrollmentService) EnrollWorker(
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid enrollment token"))
 	}
 
-	if msg.CsrPem == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("CSR is required"))
-	}
-
 	workerID, err := generateWorkerID()
 	if err != nil {
 		s.logger.Error("Failed to generate worker ID", zap.Error(err))
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate worker ID"))
 	}
 
-	certPEM, err := s.pkiManager.SignWorkerCSR([]byte(msg.CsrPem), workerID)
+	apiToken, tokenHash, err := auth.GenerateAPIToken()
 	if err != nil {
-		s.logger.Error("Failed to sign worker CSR", zap.String("worker_id", workerID), zap.Error(err))
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to sign CSR: %v", err))
+		s.logger.Error("Failed to generate API token", zap.Error(err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate API token"))
 	}
-
-	expiresAt := time.Now().Add(30 * 24 * time.Hour).Unix()
 
 	normalizedRegion := regions.Normalize(msg.Region)
 
 	_, err = s.queries.EnrollWorker(ctx, &sqlc.EnrollWorkerParams{
-		ID:                   workerID,
-		Hostname:             sql.NullString{String: msg.Hostname, Valid: true},
-		Region:               normalizedRegion,
-		Version:              msg.WorkerVersion,
-		CertificateExpiresAt: sql.NullTime{Time: time.Unix(expiresAt, 0), Valid: true},
+		ID:       workerID,
+		Hostname: sql.NullString{String: msg.Hostname, Valid: true},
+		Region:   normalizedRegion,
+		Version:  msg.WorkerVersion,
 	})
 	if err != nil {
 		s.logger.Error("Failed to enroll worker in database", zap.String("worker_id", workerID), zap.Error(err))
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to enroll worker"))
+	}
+
+	err = s.queries.SetWorkerToken(ctx, &sqlc.SetWorkerTokenParams{
+		TokenHash: sql.NullString{String: tokenHash, Valid: true},
+		ID:        workerID,
+	})
+	if err != nil {
+		s.logger.Error("Failed to set worker token", zap.String("worker_id", workerID), zap.Error(err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to set worker token"))
+	}
+
+	if s.authCache != nil {
+		s.authCache.InvalidateWorker(workerID)
+		s.authCache.Set(tokenHash, workerID)
 	}
 
 	s.logger.Info("Worker enrolled successfully",
@@ -101,12 +119,10 @@ func (s *EnrollmentService) EnrollWorker(
 		zap.String("version", msg.WorkerVersion))
 
 	return connect.NewResponse(&openseerv1.EnrollWorkerResponse{
-		WorkerId:      workerID,
-		Accepted:      true,
-		Certificate:   string(certPEM),
-		ExpiresAt:     expiresAt,
-		ApiEndpoint:   s.apiEndpoint,
-		CaCertificate: string(s.pkiManager.GetCACertPEM()),
+		WorkerId:    workerID,
+		Accepted:    true,
+		ApiToken:    apiToken,
+		ApiEndpoint: s.apiEndpoint,
 	}), nil
 }
 
@@ -120,31 +136,37 @@ func (s *EnrollmentService) RenewEnrollment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("worker ID is required"))
 	}
 
-	if msg.CsrPem == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("CSR is required for renewal"))
-	}
-
 	worker, err := s.queries.GetWorkerByID(ctx, msg.WorkerId)
 	if err != nil {
 		s.logger.Error("Worker not found", zap.String("worker_id", msg.WorkerId), zap.Error(err))
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("worker not found"))
 	}
 
-	certPEM, err := s.pkiManager.SignWorkerCSR([]byte(msg.CsrPem), msg.WorkerId)
-	if err != nil {
-		s.logger.Error("Failed to sign renewed CSR", zap.String("worker_id", msg.WorkerId), zap.Error(err))
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to sign CSR: %w", err))
+	if worker.Status == "revoked" {
+		return connect.NewResponse(&openseerv1.RenewEnrollmentResponse{
+			Renewed: false,
+			Reason:  "worker enrollment is revoked",
+		}), nil
 	}
 
-	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	apiToken, tokenHash, err := auth.GenerateAPIToken()
+	if err != nil {
+		s.logger.Error("Failed to generate API token", zap.Error(err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate API token"))
+	}
 
-	_, err = s.queries.RenewWorkerCertificate(ctx, &sqlc.RenewWorkerCertificateParams{
-		CertificateExpiresAt: sql.NullTime{Time: expiresAt, Valid: true},
-		ID:                   msg.WorkerId,
+	err = s.queries.SetWorkerToken(ctx, &sqlc.SetWorkerTokenParams{
+		TokenHash: sql.NullString{String: tokenHash, Valid: true},
+		ID:        msg.WorkerId,
 	})
 	if err != nil {
-		s.logger.Error("Failed to update worker certificate expiration", zap.String("worker_id", msg.WorkerId), zap.Error(err))
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update certificate expiration: %w", err))
+		s.logger.Error("Failed to set worker token", zap.String("worker_id", msg.WorkerId), zap.Error(err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to renew token"))
+	}
+
+	if s.authCache != nil {
+		s.authCache.InvalidateWorker(msg.WorkerId)
+		s.authCache.Set(tokenHash, msg.WorkerId)
 	}
 
 	s.logger.Info("Worker enrollment renewed",
@@ -152,9 +174,8 @@ func (s *EnrollmentService) RenewEnrollment(
 		zap.String("region", worker.Region))
 
 	return connect.NewResponse(&openseerv1.RenewEnrollmentResponse{
-		Renewed:     true,
-		Certificate: string(certPEM),
-		ExpiresAt:   expiresAt.Unix(),
+		Renewed:  true,
+		ApiToken: apiToken,
 	}), nil
 }
 
@@ -172,6 +193,17 @@ func (s *EnrollmentService) RevokeEnrollment(
 	if err != nil {
 		s.logger.Error("Worker not found", zap.String("worker_id", msg.WorkerId), zap.Error(err))
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("worker not found"))
+	}
+
+	err = s.queries.SetWorkerToken(ctx, &sqlc.SetWorkerTokenParams{
+		TokenHash: sql.NullString{Valid: false},
+		ID:        msg.WorkerId,
+	})
+	if err != nil {
+		s.logger.Error("Failed to clear worker token", zap.String("worker_id", msg.WorkerId), zap.Error(err))
+	}
+	if s.authCache != nil {
+		s.authCache.InvalidateWorker(msg.WorkerId)
 	}
 
 	err = s.queries.RevokeWorker(ctx, &sqlc.RevokeWorkerParams{

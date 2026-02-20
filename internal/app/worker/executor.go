@@ -22,7 +22,7 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 	w.activeJobs[job.RunId] = cancel
 	w.mu.Unlock()
 
-	if job.TimeoutMs > 20000 {
+	if job.TimeoutMs > w.leaseRenewalThreshold {
 		renewalCtx, renewalCancel := context.WithCancel(ctx)
 		go recovery.WithRecover(
 			fmt.Sprintf("lease-renewal-%s", job.RunId),
@@ -45,7 +45,7 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 	if err != nil {
 		msg := err.Error()
 		result.ErrorMessage = &msg
-		w.sendResult(result)
+		w.sendResult(ctx, result)
 		return
 	}
 
@@ -75,7 +75,7 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 		result.ErrorMessage = &msg
 		total := int32(time.Since(start).Milliseconds())
 		result.TotalMs = &total
-		w.sendResult(result)
+		w.sendResult(ctx, result)
 		return
 	}
 	defer func() {
@@ -139,5 +139,5 @@ func (w *Worker) executeCheck(ctx context.Context, job *openseerv1.MonitorJob) {
 		result.SizeBytes = &vSize
 	}
 
-	w.sendResult(result)
+	w.sendResult(ctx, result)
 }

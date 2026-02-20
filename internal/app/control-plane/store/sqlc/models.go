@@ -78,17 +78,17 @@ type AppMonitor struct {
 }
 
 type AppWorker struct {
-	ID                   string         `json:"id"`
-	Region               string         `json:"region"`
-	Version              string         `json:"version"`
-	LastSeenAt           time.Time      `json:"last_seen_at"`
-	RegisteredAt         time.Time      `json:"registered_at"`
-	Status               string         `json:"status"`
-	Hostname             sql.NullString `json:"hostname"`
-	EnrolledAt           time.Time      `json:"enrolled_at"`
-	CertificateExpiresAt sql.NullTime   `json:"certificate_expires_at"`
-	RevokedAt            sql.NullTime   `json:"revoked_at"`
-	RevokedReason        sql.NullString `json:"revoked_reason"`
+	ID            string         `json:"id"`
+	Region        string         `json:"region"`
+	Version       string         `json:"version"`
+	LastSeenAt    time.Time      `json:"last_seen_at"`
+	RegisteredAt  time.Time      `json:"registered_at"`
+	Status        string         `json:"status"`
+	Hostname      sql.NullString `json:"hostname"`
+	EnrolledAt    time.Time      `json:"enrolled_at"`
+	RevokedAt     sql.NullTime   `json:"revoked_at"`
+	RevokedReason sql.NullString `json:"revoked_reason"`
+	TokenHash     sql.NullString `json:"token_hash"`
 }
 
 type AppWorkerCapability struct {

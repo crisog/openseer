@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"log"
 	"net"
@@ -11,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -29,6 +26,15 @@ func getEnvInt32(key string, defaultValue int32) int32 {
 	if str := os.Getenv(key); str != "" {
 		if val, err := strconv.Atoi(str); err == nil {
 			return int32(val)
+		}
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if str := os.Getenv(key); str != "" {
+		if val, err := strconv.Atoi(str); err == nil {
+			return val
 		}
 	}
 	return defaultValue
@@ -81,57 +87,27 @@ func main() {
 		log.Fatal("CLUSTER_TOKEN environment variable is required and cannot be empty")
 	}
 
-	controlPlaneAddr := getEnv("CONTROL_PLANE_ADDR", "localhost:8081")
-	enrollmentPort := getEnv("ENROLLMENT_PORT", "8082")
-	controlHost := controlPlaneAddr
-	if idx := strings.Index(controlPlaneAddr, ":"); idx >= 0 {
-		controlHost = controlPlaneAddr[:idx]
-	}
-	enrollmentServerName := getEnv("ENROLLMENT_SERVER_NAME", controlHost)
-	enrollmentCAPath := getEnv("ENROLLMENT_CA_FILE", "")
-
-	var enrollmentTLSConfig *tls.Config
-	if enrollmentCAPath != "" {
-		caPEM, err := os.ReadFile(enrollmentCAPath)
-		if err != nil {
-			log.Fatalf("failed to read enrollment CA file %s: %v", enrollmentCAPath, err)
-		}
-		caPool := x509.NewCertPool()
-		if !caPool.AppendCertsFromPEM(caPEM) {
-			log.Fatalf("failed to parse enrollment CA certificate at %s", enrollmentCAPath)
-		}
-		enrollmentTLSConfig = &tls.Config{
-			RootCAs:    caPool,
-			MinVersion: tls.VersionTLS12,
-			ServerName: enrollmentServerName,
-		}
-	}
-
-	enrollmentScheme := getEnv("ENROLLMENT_SCHEME", "")
-	if enrollmentScheme == "" {
-		if enrollmentTLSConfig != nil {
-			enrollmentScheme = "https"
-		} else {
-			enrollmentScheme = "http"
-		}
-	}
-
+	enrollmentURL := getEnv("ENROLLMENT_URL", "http://localhost:8080")
 	maxConcurrency := getEnvInt32("MAX_CONCURRENCY", 5)
+	pollBaseInterval := getEnvDuration("POLL_BASE_INTERVAL", 1*time.Second)
+	pollMaxInterval := getEnvDuration("POLL_MAX_INTERVAL", 10*time.Second)
+	resultSubmitMaxAttempts := getEnvInt("RESULT_SUBMIT_MAX_ATTEMPTS", 6)
+	resultSubmitRetryInterval := getEnvDuration("RESULT_SUBMIT_RETRY_INTERVAL", 5*time.Second)
+	resultSubmitTimeout := getEnvDuration("RESULT_SUBMIT_TIMEOUT", 10*time.Second)
 
 	w := worker.NewWorker(
 		workerID,
 		getEnv("REGION", "us-east-1"),
-		"0.3.0",
-		controlPlaneAddr,
-		enrollmentPort,
+		"0.4.0",
+		enrollmentURL,
 		clusterToken,
 		maxConcurrency,
-		enrollmentScheme,
-		enrollmentTLSConfig,
 		hc,
-	)
+	).
+		WithPollingConfig(pollBaseInterval, pollMaxInterval).
+		WithResultRetryConfig(resultSubmitMaxAttempts, resultSubmitRetryInterval, resultSubmitTimeout)
 
-	log.Printf("Worker %s starting, max concurrency: %d, connecting to %s (pull-based job model)", workerID, maxConcurrency, controlPlaneAddr)
+	log.Printf("Worker %s starting, max concurrency: %d, enrollment URL: %s", workerID, maxConcurrency, enrollmentURL)
 
 	err := w.Run(ctx)
 

@@ -168,8 +168,9 @@ func (s *Scheduler) scheduleMonitorTx(ctx context.Context, qtx *sqlc.Queries, mo
 	for _, region := range monitor.Regions {
 		runID := generateRunID(monitor.ID, region, scheduledAt)
 
-		windowStart := scheduledAt.Add(-1 * time.Minute)
-		windowEnd := scheduledAt.Add(1 * time.Minute)
+		dedupWindow := s.calculateDedupWindow(baseInterval)
+		windowStart := scheduledAt.Add(-dedupWindow)
+		windowEnd := scheduledAt.Add(dedupWindow)
 
 		job, err := qtx.CreateJobIdempotent(ctx, &sqlc.CreateJobIdempotentParams{
 			RunID:         runID,
@@ -236,6 +237,17 @@ func (s *Scheduler) applyJitter(interval time.Duration, monitorID string, seed i
 		return interval + jitter
 	}
 	return interval - jitter
+}
+
+func (s *Scheduler) calculateDedupWindow(interval time.Duration) time.Duration {
+	halfInterval := interval / 2
+	if halfInterval < 500*time.Millisecond {
+		return 500 * time.Millisecond
+	}
+	if halfInterval > 1*time.Minute {
+		return 1 * time.Minute
+	}
+	return halfInterval
 }
 
 func generateRunID(monitorID, region string, scheduledAt time.Time) string {

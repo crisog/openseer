@@ -8,15 +8,17 @@ ON CONFLICT (id)
 DO UPDATE SET
     last_seen_at = NOW(),
     status = 'active'
-RETURNING *;
+RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash;
 
 -- name: UpdateWorkerHeartbeat :exec
 UPDATE app.workers
-SET last_seen_at = NOW()
+SET last_seen_at = NOW(),
+    status = 'active'
 WHERE id = $1;
 
 -- name: GetActiveWorkers :many
-SELECT * FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
 WHERE status = 'active'
 AND last_seen_at >= NOW() - INTERVAL '1 minute'
 ORDER BY region, id;
@@ -30,21 +32,16 @@ WHERE status IN ('active', 'enrolled')
 -- name: EnrollWorker :one
 INSERT INTO app.workers (
     id, hostname, region, version, 
-    enrolled_at, last_seen_at, status, certificate_expires_at
+    enrolled_at, last_seen_at, status
 ) VALUES (
-    $1, $2, $3, $4, NOW(), NOW(), 'enrolled', $5
+    $1, $2, $3, $4, NOW(), NOW(), 'enrolled'
 )
-RETURNING *;
+RETURNING id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash;
 
 -- name: GetWorkerByID :one
-SELECT * FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
 WHERE id = $1;
-
--- name: RenewWorkerCertificate :one
-UPDATE app.workers
-SET certificate_expires_at = $1, last_seen_at = NOW()
-WHERE id = $2
-RETURNING *;
 
 -- name: RevokeWorker :exec
 UPDATE app.workers
@@ -52,7 +49,8 @@ SET status = 'revoked', revoked_at = NOW(), revoked_reason = $1
 WHERE id = $2;
 
 -- name: ListWorkers :many
-SELECT * FROM app.workers
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
 WHERE ($1::TEXT IS NULL OR region = $1)
   AND ($2::TEXT IS NULL OR status = $2)
 ORDER BY enrolled_at DESC
@@ -94,3 +92,14 @@ SELECT
     healthy_workers
 FROM region_stats
 ORDER BY region;
+
+-- name: GetWorkerByTokenHash :one
+SELECT id, region, version, last_seen_at, registered_at, status, hostname, enrolled_at, revoked_at, revoked_reason, token_hash
+FROM app.workers
+WHERE token_hash = $1
+  AND status IN ('enrolled', 'active', 'inactive');
+
+-- name: SetWorkerToken :exec
+UPDATE app.workers
+SET token_hash = $1
+WHERE id = $2;

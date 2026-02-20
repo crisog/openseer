@@ -8,7 +8,7 @@ Self-hosted, horizontally scalable HTTP monitoring with a modern web interface. 
 graph TB
     Users[👥 Users]
     WebUI[🌐 Web UI<br/>Next.js :3000]
-    ControlPlane[🎯 Control Plane<br/>Go :8081/:8082]
+    ControlPlane[🎯 Control Plane<br/>Go :8080]
     Database[(🗄️ TimescaleDB<br/>PostgreSQL)]
 
     subgraph "Workers - Distributed"
@@ -19,78 +19,83 @@ graph TB
 
     Users --> WebUI
     WebUI -.->|Session Auth<br/>Connect RPC| ControlPlane
-    WorkerUS <-.->|mTLS gRPC<br/>Bidirectional Stream| ControlPlane
-    WorkerEU <-.->|mTLS gRPC<br/>Bidirectional Stream| ControlPlane
-    WorkerAP <-.->|mTLS gRPC<br/>Bidirectional Stream| ControlPlane
+    WorkerUS -->|Token Auth<br/>HTTP Polling| ControlPlane
+    WorkerEU -->|Token Auth<br/>HTTP Polling| ControlPlane
+    WorkerAP -->|Token Auth<br/>HTTP Polling| ControlPlane
     ControlPlane --> Database
 
     subgraph "Database Schemas"
-        AppSchema[📋 app schema<br/>monitors, jobs, workers, users]
+        AppSchema[📋 app schema<br/>monitors, jobs, workers, worker_capabilities]
         TSSchema[📊 ts schema<br/>results_raw, results_agg_*]
+        AuthSchema[🔐 auth tables<br/>user, session, account, ...]
     end
 
     Database --- AppSchema
     Database --- TSSchema
+    Database --- AuthSchema
 ```
 
 OpenSeer consists of four main components:
 
 - **Web Frontend (Next.js)** - Modern dashboard with real-time metrics visualization, multi-user support with secure session-based authentication
-- **Control Plane (Go)** - Service managing workers and job scheduling
-- **Workers (Go)** - Distributed agents executing HTTP checks across geographic regions, communicating via mTLS gRPC
+- **Control Plane (Go)** - Service managing workers and job scheduling via HTTP APIs
+- **Workers (Go)** - Distributed agents executing HTTP checks across geographic regions, using HTTP polling with token-based authentication
 - **Database (PostgreSQL + TimescaleDB)** - Time-series storage with automatic aggregation (1-minute, 1-hour, and 1-day intervals), P50/P95/P99 latency tracking, and uptime statistics
 
+## Worker Communication
+
+Workers communicate with the Control Plane using a simple HTTP polling model:
+
+1. **Enrollment**: Workers register using a cluster token and receive an API token (`ostk_...`)
+2. **Job Polling**: Workers poll `GetJobs` endpoint to fetch available jobs for their region
+3. **Result Submission**: After executing checks, workers submit results via `SubmitResult`
+4. **Lease Renewal**: For long-running checks, workers can extend job leases via `RenewLease`
+
+This polling-based architecture provides:
+- **Simplicity**: No persistent connections to maintain
+- **Scalability**: Stateless control plane, easy horizontal scaling
+- **Resilience**: Workers automatically reconnect on network issues
+
 For detailed architecture documentation, see:
-- [Control Plane Architecture](cmd/control-plane/ARCHITECTURE.md)
-- [Worker Architecture](cmd/worker/ARCHITECTURE.md)
+- [Control Plane Architecture](cmd/control-plane/README.md)
+- [Worker Architecture](cmd/worker/README.md)
+- [Multi-Cloud Production Guidance](docs/production-multicloud.md)
 
 ## Quick Start
 
-Start the complete stack with one command:
+For a fresh environment:
 
 ```bash
+task migrate
 task up
 ```
 
+`task migrate` runs backend and web auth migrations. `task up` starts the app profile (TimescaleDB, control plane, worker, and web).
+
 Then access:
 - **Web UI**: http://localhost:3000
-- **API**: https://localhost:8082
+- **API**: http://localhost:8080
 
-### Step-by-Step Setup
-
-1. **Start Database**
-   ```bash
-   task db-up       # PostgreSQL + TimescaleDB
-   task migrate-up  # Database migrations
-   ```
-
-2. **Start Services**
-   ```bash
-   task backend-up  # Control plane + workers
-   task web-up      # Web interface
-   ```
-
-3. **Create Monitors**
-   - Open http://localhost:3000
-   - Sign up/sign in
-   - Add monitors via the web interface
-
-### Development Mode
-
-For development with hot-reload:
+To stop services:
 
 ```bash
-task dev-full    # Full stack with live reload
+task down
 ```
 
-### Common Commands
+To stop services and remove volumes:
 
 ```bash
-task logs              # View all service logs
-task scale-workers N=3 # Scale workers
-task psql              # Database CLI
-task build             # Build images
-task --list            # Show all available tasks
+task clean
+```
+
+### Task Commands
+
+```bash
+task up        # Start all app services
+task down      # Stop app services
+task clean     # Stop app services and remove volumes
+task migrate   # Run backend + web migrations
+task --list    # Show all available tasks
 ```
 
 ## Contributing
